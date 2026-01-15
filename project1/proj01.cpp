@@ -1,8 +1,8 @@
 // A program calculating address size and memory size from a command line input
 
 #include <iostream>
-#include <cmath>
-#include <cctype>
+#include <cmath>    // Used for pow()
+#include <cctype>   // Used for tolower and isdigit
 
 int main(int argc, char * argv[]){
 //    std::cout << argc << std::endl;
