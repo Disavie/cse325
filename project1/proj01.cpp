@@ -11,10 +11,10 @@ int main(int argc, char * argv[]){
     if (argc == 2){
         // Getting length of the address
         // Also checking for a valid address, must contain alphanumeric character with largest character being F (ascii 72)
-        char *c = argv[1];
-        while(*c != '\0'){
+        char *address_ptr = argv[1];
+        while(*address_ptr != '\0'){
             //std::cout << int(*c) << std::endl;
-            char ch = std::tolower(*c);
+            char ch = std::tolower(*address_ptr);
             if(!std::isdigit(ch) && !(ch >= 'a' && ch <= 'f')){
                 err = true;
                 break;
@@ -24,7 +24,7 @@ int main(int argc, char * argv[]){
                 break;
             }
             length++;
-            c++;
+            address_ptr++;
         }
     }else{
         err = true;
