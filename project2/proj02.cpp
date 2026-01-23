@@ -89,7 +89,9 @@ int main(int argc, char* argv[]){
         */
         int read_file;
         read_file = open(file1.c_str(), O_RDONLY);
-
+        if (read_file == -1){
+            invalid("file to open does not exist");
+        }
         /*
         *   Opening file to be written to
         */
@@ -102,7 +104,7 @@ int main(int argc, char* argv[]){
             flags |= O_APPEND;
         }
 
-        write_file = open(file2.c_str(), flags);
+        write_file = open(file2.c_str(), flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
         
         char buffer[samplesz]; /// < Buffer to be read to and written from
         ssize_t bytesRead;
