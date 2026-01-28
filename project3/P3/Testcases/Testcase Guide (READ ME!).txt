@@ -1,0 +1,11 @@
+- A few test cases are shared with you in this directory. Your submissions will be tested against the shared test cases and also against a few test cases not publicly disclosed. Make sure to think about edge conditions and create more test cases of your own.
+
+- The "Inputs" directory contains 5 sample process files. You should copy these files to the same directory as your proj02 executable file.
+
+- The "Expected Outputs" directory contains the expected LOG.txt contents for 10 runs of the simulation. The titles of these files reflect the commands used to generate them. For example, "N=1,LOG.txt" indicates that the number of processes used for this simulation was 1 and no debug flag was provided. Basically, the following command was used to generate this output:
+
+./proj02 1
+
+- The title "N=4,with-debug,LOG.txt" indicates that the number of processes used for this simulation was 4 and the debug flag was provided. The following command was used to generate this output:
+
+./proj02 4 -debug
