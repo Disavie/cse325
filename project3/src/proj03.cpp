@@ -98,7 +98,7 @@ int main(int argc, char * argv[]){
           });
     
     std::queue<std::vector<std::string>> readyQueue;
-    std::queue<std::vector<std::string>> blockedQueue;
+    std::vector<std::tuple<int,int,std::vector<std::string>>> blockedQueue;
 
     
     for(int i = 0; i < instructions.size(); i++){
@@ -115,17 +115,34 @@ int main(int argc, char * argv[]){
 
     int runningProcessNo = extractNum(runningProcess[0]);
     printStateChange(cycle,runningProcessNo,"Ready" , "Running");
+    int waitCycles = 0;
 
 
     /// Run until nothing in readyQueue and nothing in blockedQueue (waiting for something) and nothing Running
+
+    ///blockedQueue
+    /**
+     * blockedQueue = [process = [time to sleep, instructions]...]
+     */
+
     while(!runningProcess.empty() || !readyQueue.empty() || !blockedQueue.empty()){
-        if (cycle > 100){
+        if (cycle > 30){
             break;
+        }
+        if (runningProcess.empty()){
+            std::cout << cycle << " " << "CPU IDLE" << std::endl;
         }
 
         if (runningProcess.empty()){
-            std::cout << cycle << " " << "CPU IDLE" << std::endl;
-        }else{
+            if(!readyQueue.empty()){
+                    runningProcess = readyQueue.front();
+                    readyQueue.pop();
+                    runningProcessNo = extractNum(runningProcess[0]);
+                    printStateChange(cycle,runningProcessNo,"Ready" , "Running");
+                    PC = processInstructionStep[runningProcessNo - 1]+1;
+
+            }
+        }
 
             runningProcessNo = extractNum(runningProcess[0]);
             /// Restore PC of current process
@@ -135,7 +152,7 @@ int main(int argc, char * argv[]){
             if (contains(instruction, "SYS_CALL")){
                 /// Handle SYS_CAL
                 systemCallActivated = true;
-
+                waitCycles = extractNum(instruction);
             }
 
             if (showDebug == true){
@@ -149,7 +166,7 @@ int main(int argc, char * argv[]){
                 processInstructionStep[runningProcessNo - 1] = PC;
                 if (systemCallActivated){
                     if (!contains(instruction,"TERMINATE")){
-                        blockedQueue.push(runningProcess);
+                        blockedQueue.emplace_back(cycle,waitCycles,runningProcess);
                         printStateChange(cycle,runningProcessNo,"Running" , "Blocked");
                     }else{
                         printStateChange(cycle,runningProcessNo,"Running" , "Halted");
@@ -157,6 +174,7 @@ int main(int argc, char * argv[]){
                     systemCallActivated = false;
                 }else{
                     readyQueue.push(runningProcess);
+                    runningProcess.clear();
                     printStateChange(cycle,runningProcessNo,"Running" , "Ready");
 
                 }
@@ -171,13 +189,24 @@ int main(int argc, char * argv[]){
                 }
                 /// Change current running process
             }
+
+        for(int i = 0 ; i < blockedQueue.size(); i++){
+            int stoppedOn = std::get<0>(blockedQueue[i]);
+            int waitCycles = std::get<1>(blockedQueue[i]);
+            if(cycle!=stoppedOn && (cycle-stoppedOn)>=waitCycles){
+                readyQueue.push(std::get<2>(blockedQueue[i]));
+                blockedQueue.erase(blockedQueue.begin() + i);
+                printStateChange(cycle,runningProcessNo,"Blocked" , "Ready");
+                cycle++;
+                continue;
+            }
+
         }
-
-
-        /// Check BlockedQueue to see if I need to move stuff out of here
-
-        PC++;
+        if(!runningProcess.empty())
+            PC++;
         cycle++;
+
+
 
     }
     
