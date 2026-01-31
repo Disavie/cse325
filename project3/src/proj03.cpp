@@ -131,21 +131,21 @@ int main(int argc, char * argv[]){
      */
 
     while(!runningProcess.empty() || !readyQueue.empty() || !blockedQueue.empty()){
-        if (cycle > 30){
-            break;
-        }
+
+        if (!runningProcess.empty())
+            timeSlice++;
+            
         if (runningProcess.empty()){
             if(!readyQueue.empty()){
                     runningProcess = readyQueue.front();
                     readyQueue.pop();
                     runningProcessNo = extractNum(runningProcess[0]);
                     printStateChange(cycle,runningProcessNo,"Ready" , "Running");
-                    timeSlice = 0;
+                    timeSlice = 1;
                     PC = processInstructionStep[runningProcessNo - 1]+1;
 
             }else{
-            log << cycle << ": " << "CPU Idle" << std::endl;
-
+                log << cycle << ": " << "CPU Idle" << std::endl;
             }
         }
         std::string instruction;
@@ -163,11 +163,12 @@ int main(int argc, char * argv[]){
 
             if (showDebug == true){
                 printDebug(cycle,runningProcessNo,instruction);
+                //log << timeSlice << std::endl;
                 /// Print instruction @ each step
             }
         }
 
-        if (timeSlice == TIMER_INTERRUPT_INTERVAL || systemCallActivated){
+        if (timeSlice >= TIMER_INTERRUPT_INTERVAL || systemCallActivated){
 
             /// Save PC for this process
             processInstructionStep[runningProcessNo - 1] = PC;
@@ -201,16 +202,19 @@ int main(int argc, char * argv[]){
             int waitCycles = std::get<1>(blockedQueue[i]);
             if(cycle!=stoppedOn && (cycle-stoppedOn)>=waitCycles){
                 readyQueue.push(std::get<2>(blockedQueue[i]));
+                printStateChange(cycle,extractNum(std::get<2>(blockedQueue[i])[0]),"Blocked" , "Ready");
                 blockedQueue.erase(blockedQueue.begin() + i);
-                printStateChange(cycle,runningProcessNo,"Blocked" , "Ready");
+
 
             }
 
         }
-        if(!runningProcess.empty())
+        if (!runningProcess.empty())
             PC++;
+
         cycle++;
-        timeSlice++;
+
+
 
 
 
