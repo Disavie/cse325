@@ -10,24 +10,69 @@ using namespace std;
 
 
 struct Object{
-    unsigned int id;
+    unsigned int customer_id = 0;
+    unsigned int product_id;
     float price;
     unsigned int quantity;
     string description;
 };
 
-void PrintInventory(vector<Object> &Inventory){
-    // Print objects in Inventory
-    for (size_t i = 0; i < Inventory.size(); i++) {
-        cout << Inventory[i].id << " "
-            << Inventory[i].price << " "
-            << Inventory[i].quantity << " "
-            << Inventory[i].description << endl;
+#include <iomanip>  // for setw, left, right
+
+void PrintObjects(const vector<Object> &Objects) {
+    // Print header
+    cout << left
+         << setw(12) << "CustomerID"
+         << setw(10) << "ProductID"
+         << setw(8)  << "Price"
+         << setw(10) << "Quantity"
+         << "Description" << endl;
+
+    cout << string(60, '-') << endl;  // separator line
+
+    // Print objects
+    for (const auto &obj : Objects) {
+        cout << left
+             << setw(12) << obj.customer_id
+             << setw(10) << obj.product_id
+             << setw(8)  << fixed << setprecision(2) << obj.price
+             << setw(10) << obj.quantity
+             << obj.description << endl;
     }
 }
 
 void * InitProducer(void * arg){
-    cout << '[' << *(int *)arg << ']' << endl;
+    //cout << '[' << *(int *)arg << ']' << endl;
+    /// Individual order list per producer
+    vector<Object> Orders;
+
+    string filename = "orders" + to_string( *(int *)arg+1);
+    cout << filename << endl;
+
+    ifstream order;
+    order.open(filename);
+    string line;
+    while (getline(order, line)) {
+        stringstream ss(line);
+
+        int c_id;
+        int p_id; 
+        int quantity;
+
+        ss >> c_id >> p_id>> quantity;
+
+
+        Object x;
+        x.product_id = p_id;
+        x.customer_id = c_id;
+        x.quantity = quantity;
+
+        Orders.push_back(x);
+    }
+
+    order.close();
+    
+    PrintObjects(Orders);
     return nullptr;
 }
 
@@ -87,7 +132,7 @@ int main(int argc, char ** argv){
             description.erase(0, 1);
 
         Object x;
-        x.id = id;
+        x.product_id = id;
         x.price = price;
         x.quantity = quantity;
         x.description = description;
@@ -98,7 +143,7 @@ int main(int argc, char ** argv){
 
     inventory.close();
 
-    PrintInventory(Inventory);
+    PrintObjects(Inventory);
     /// Add 1 to account for singular consumer (order fulfiller)
     pthread_t threads[1+numProducer];
 
