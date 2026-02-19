@@ -5,9 +5,10 @@
 #include <unistd.h>
 #include <fstream>
 #include <sstream>
+#include <iomanip>  // for setw, left, right
+#include <semaphore.h>
 
 using namespace std;
-
 
 struct Object{
     unsigned int customer_id = 0;
@@ -17,7 +18,16 @@ struct Object{
     string description;
 };
 
-#include <iomanip>  // for setw, left, right
+sem_t mutex; 
+sem_t sem_empty;
+sem_t sem_full;
+const int DEFAULTSZ = 10; 
+
+/// Shared resources, to be synced wth semaphores
+vector<Object> Inventory(DEFAULTSZ);
+int in = 0;
+int out = 0;
+
 
 void PrintObjects(const vector<Object> &Objects) {
     // Print header
@@ -47,7 +57,7 @@ void * InitProducer(void * arg){
     vector<Object> Orders;
 
     string filename = "orders" + to_string( *(int *)arg+1);
-    cout << filename << endl;
+//    cout << filename << endl;
 
     ifstream order;
     order.open(filename);
@@ -72,21 +82,37 @@ void * InitProducer(void * arg){
 
     order.close();
     
-    PrintObjects(Orders);
+//  PrintObjects(Orders);
+
+    while(Orders.size() > 0){
+        // Wait until allowed access to the Inventory
+        sem_wait(&sem_full);  
+        sem_wait(&mutex);  
+
+        if(out != in){
+            Inventory[out%(Inventory.size())] = Orders[0]; /// < % Inventory.size() makes it wrap to front circularly
+            out++;
+            Orders.erase(Orders.begin());
+        }
+        sem_post(&sem_full);
+
+        // Unlock access to the Inventory
+        sem_post(&mutex);
+
+    }
     return nullptr;
 }
 
 void * InitConsumer(void * arg){
-    cout << "Consumer!" << endl;
+//    cout << "Consumer!" << endl;
     return nullptr;
 }
 
 
 int main(int argc, char ** argv){
 
-    const int DEFAULTSZ = 10; 
-    vector<Object> Inventory(DEFAULTSZ);
     int numProducer = 1;
+
 
     for(int i = 0 ; i < argc ; i++){
         string s(argv[i]);
@@ -106,9 +132,6 @@ int main(int argc, char ** argv){
             }
         }
     }
-    
-    cout << "inventory size = " << Inventory.size() << endl;
-    cout << "numProducer = " << numProducer << endl;
 
     //init inventory
     string filename = "testcases/inventory.old";
@@ -139,11 +162,21 @@ int main(int argc, char ** argv){
 
         Inventory[i] = x;
         i++;
+        out++;
     }
 
     inventory.close();
 
-    PrintObjects(Inventory);
+    /// initialize Inventory access semaphore
+    sem_init(&mutex,0,1);
+    /// initialize Empty location semaphore
+    sem_init(&sem_empty,0,1);
+    /// initialize Full location semaphore
+    sem_init(&sem_full,0,1);
+
+
+
+//    PrintObjects(Inventory);
     /// Add 1 to account for singular consumer (order fulfiller)
     pthread_t threads[1+numProducer];
 
@@ -162,5 +195,9 @@ int main(int argc, char ** argv){
         /// Rejoin threads
         pthread_join(threads[i],nullptr);
     }
+
+    sem_destroy(&mutex);
+    sem_destroy(&sem_full);
+    sem_destroy(&sem_empty);
     return 0;
 }
