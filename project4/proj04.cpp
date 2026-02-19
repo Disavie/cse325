@@ -2,202 +2,198 @@
 #include <vector>
 #include <string>
 #include <pthread.h>
-#include <unistd.h>
 #include <fstream>
 #include <sstream>
-#include <iomanip>  // for setw, left, right
+#include <iomanip>
 #include <semaphore.h>
 
 using namespace std;
 
-struct Object{
+struct Order {
     unsigned int customer_id = 0;
-    unsigned int product_id;
-    float price;
-    unsigned int quantity;
+    unsigned int product_id = 0;
+    unsigned int quantity = 0;
+    bool done = false; // signals producer finished
+};
+
+struct Item {
+    unsigned int product_id = 0;
+    double price = 0.0;
+    unsigned int quantity = 0;
     string description;
 };
 
-sem_t mutex; 
-sem_t sem_empty;
-sem_t sem_full;
-const int DEFAULTSZ = 10; 
+vector<Item> Inventory;     // real inventory
+vector<Order> Buffer;       // bounded buffer
 
-/// Shared resources, to be synced wth semaphores
-vector<Object> Inventory(DEFAULTSZ);
+int buffer_size = 10;
 int in = 0;
 int out = 0;
 
+int numProducers = 1;
+int finishedProducers = 0;
 
-void PrintObjects(const vector<Object> &Objects) {
-    // Print header
-    cout << left
-         << setw(12) << "CustomerID"
-         << setw(10) << "ProductID"
-         << setw(8)  << "Price"
-         << setw(10) << "Quantity"
-         << "Description" << endl;
+sem_t mutex;
+sem_t sem_empty;
+sem_t sem_full;
 
-    cout << string(60, '-') << endl;  // separator line
+void* Producer(void* arg) {
+    int id = *(int*)arg;
+    string filename = "orders" + to_string(id + 1);
 
-    // Print objects
-    for (const auto &obj : Objects) {
-        cout << left
-             << setw(12) << obj.customer_id
-             << setw(10) << obj.product_id
-             << setw(8)  << fixed << setprecision(2) << obj.price
-             << setw(10) << obj.quantity
-             << obj.description << endl;
-    }
-}
-
-void * InitProducer(void * arg){
-    //cout << '[' << *(int *)arg << ']' << endl;
-    /// Individual order list per producer
-    vector<Object> Orders;
-
-    string filename = "orders" + to_string( *(int *)arg+1);
-//    cout << filename << endl;
-
-    ifstream order;
-    order.open(filename);
+    ifstream file(filename);
     string line;
-    while (getline(order, line)) {
+
+    while (getline(file, line)) {
         stringstream ss(line);
+        Order order;
+        ss >> order.customer_id >> order.product_id >> order.quantity;
 
-        int c_id;
-        int p_id; 
-        int quantity;
+        sem_wait(&sem_empty);
+        sem_wait(&mutex);
 
-        ss >> c_id >> p_id>> quantity;
+        Buffer[in % buffer_size] = order;
+        in++;
 
-
-        Object x;
-        x.product_id = p_id;
-        x.customer_id = c_id;
-        x.quantity = quantity;
-
-        Orders.push_back(x);
-    }
-
-    order.close();
-    
-//  PrintObjects(Orders);
-
-    while(Orders.size() > 0){
-        // Wait until allowed access to the Inventory
-        sem_wait(&sem_full);  
-        sem_wait(&mutex);  
-
-        if(out != in){
-            Inventory[out%(Inventory.size())] = Orders[0]; /// < % Inventory.size() makes it wrap to front circularly
-            out++;
-            Orders.erase(Orders.begin());
-        }
-        sem_post(&sem_full);
-
-        // Unlock access to the Inventory
         sem_post(&mutex);
-
+        sem_post(&sem_full);
     }
+
+    // Send termination record
+    Order doneOrder;
+    doneOrder.done = true;
+
+    sem_wait(&sem_empty);
+    sem_wait(&mutex);
+
+    Buffer[in % buffer_size] = doneOrder;
+    in++;
+
+    sem_post(&mutex);
+    sem_post(&sem_full);
+
     return nullptr;
 }
 
-void * InitConsumer(void * arg){
-//    cout << "Consumer!" << endl;
-    return nullptr;
-}
+void* Consumer(void* arg) {
 
+    ofstream log("log");
 
-int main(int argc, char ** argv){
+    while (finishedProducers < numProducers) {
 
-    int numProducer = 1;
+        sem_wait(&sem_full);
+        sem_wait(&mutex);
 
+        Order order = Buffer[out % buffer_size];
+        out++;
 
-    for(int i = 0 ; i < argc ; i++){
-        string s(argv[i]);
-        //Deal with commands -b -> set buffer size default = 10
-        //Default number of producers = 1 max 9
+        sem_post(&mutex);
+        sem_post(&sem_empty);
 
-        if(s[0] == '-'){
-            switch(s[1]){
-                case 'b':
-                    Inventory.resize(stoi(argv[++i]));
-                    break;
-                case 'p':
-                    numProducer = stoi(argv[++i]);
-                    break;
-                default:
-                    cout << "err : unknown option " << s[1] << endl;
+        if (order.done) {
+            finishedProducers++;
+            continue;
+        }
+
+        // Find product in inventory
+        bool filled = false;
+        double transaction = 0.0;
+        string description = "Unknown";
+
+        for (auto& item : Inventory) {
+            if (item.product_id == order.product_id) {
+                description = item.description;
+
+                if (item.quantity >= order.quantity) {
+                    item.quantity -= order.quantity;
+                    transaction = item.price * order.quantity;
+                    filled = true;
+                }
+                break;
             }
         }
+
+        log << left
+            << setw(10) << order.customer_id
+            << setw(8)  << order.product_id
+            << setw(20) << description
+            << setw(6)  << order.quantity
+            << "$" << fixed << setprecision(2) << transaction
+            << " "
+            << (filled ? "filled" : "rejected")
+            << endl;
     }
 
-    //init inventory
-    string filename = "testcases/inventory.old";
-    ifstream inventory;
-    inventory.open(filename);
+    log.close();
+    return nullptr;
+}
+
+// ================= MAIN =================
+int main(int argc, char** argv) {
+
+    // Parse arguments
+    for (int i = 1; i < argc; i++) {
+        string s(argv[i]);
+        if (s == "-b") buffer_size = stoi(argv[++i]);
+        if (s == "-p") numProducers = stoi(argv[++i]);
+    }
+
+    // Load inventory
+    ifstream inventoryFile("inventory.old");
     string line;
-    int i = 0;
-    while (getline(inventory, line)) {
+
+    while (getline(inventoryFile, line)) {
         stringstream ss(line);
+        Item item;
 
-        int id;
-        double price;
-        int quantity;
-        string description;
+        ss >> item.product_id >> item.price >> item.quantity;
+        getline(ss, item.description);
 
-        ss >> id >> price >> quantity;
-        getline(ss, description);          // get rest of line as description
+        if (!item.description.empty() && item.description[0] == ' ')
+            item.description.erase(0, 1);
 
-        // remove leading space from description
-        if (!description.empty() && description[0] == ' ')
-            description.erase(0, 1);
-
-        Object x;
-        x.product_id = id;
-        x.price = price;
-        x.quantity = quantity;
-        x.description = description;
-
-        Inventory[i] = x;
-        i++;
-        out++;
+        Inventory.push_back(item);
     }
 
-    inventory.close();
+    inventoryFile.close();
 
-    /// initialize Inventory access semaphore
-    sem_init(&mutex,0,1);
-    /// initialize Empty location semaphore
-    sem_init(&sem_empty,0,1);
-    /// initialize Full location semaphore
-    sem_init(&sem_full,0,1);
+    // Initialize buffer
+    Buffer.resize(buffer_size);
 
+    sem_init(&mutex, 0, 1);
+    sem_init(&sem_empty, 0, buffer_size);
+    sem_init(&sem_full, 0, 0);
 
+    pthread_t threads[numProducers + 1];
 
-//    PrintObjects(Inventory);
-    /// Add 1 to account for singular consumer (order fulfiller)
-    pthread_t threads[1+numProducer];
+    // Start consumer
+    pthread_create(&threads[0], nullptr, Consumer, nullptr);
 
-    ///dispatch consumer
-    pthread_create(&threads[0],nullptr,InitConsumer,nullptr);
-
-    //init producers
-    vector<int> ids(numProducer);
-    for (int i = 0; i < numProducer; i++) {
+    // Start producers
+    vector<int> ids(numProducers);
+    for (int i = 0; i < numProducers; i++) {
         ids[i] = i;
-        pthread_create(&threads[i + 1], nullptr, InitProducer, &ids[i]);
+        pthread_create(&threads[i + 1], nullptr, Producer, &ids[i]);
     }
 
-    /// Rejoin threads
-    for(int i = 0 ; i < 1+numProducer; i++){
-        /// Rejoin threads
-        pthread_join(threads[i],nullptr);
+    // Join all threads
+    for (int i = 0; i < numProducers + 1; i++)
+        pthread_join(threads[i], nullptr);
+
+    // Write updated inventory
+    ofstream newInventory("inventory.new");
+    for (const auto& item : Inventory) {
+        newInventory << item.product_id << " "
+                     << fixed << setprecision(2) << item.price << " "
+                     << item.quantity << " "
+                     << item.description << endl;
     }
+    newInventory.close();
 
     sem_destroy(&mutex);
-    sem_destroy(&sem_full);
     sem_destroy(&sem_empty);
+    sem_destroy(&sem_full);
+
     return 0;
 }
+
