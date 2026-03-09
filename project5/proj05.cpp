@@ -5,12 +5,37 @@
 #include <iomanip>
 #include <unistd.h>
 #include <filesystem>
+#include <vector>
 
 using namespace std;
 
 void err(string msg){
     cout << msg << endl;
 }
+
+vector<string> searchDirectory(string path){
+    vector<string> entries;
+
+    
+    for (const auto& entry : std::filesystem::directory_iterator(path)) {
+        //
+        if (entry.is_directory()){
+            string subdir = path;
+            subdir = subdir + "/" + entry.path().filename().string();
+            cout << subdir << endl;
+            vector<string> subdirEntries = searchDirectory(subdir);
+            //Append to entries
+            for(string s : subdirEntries){
+                entries.push_back(s);
+            }
+        }else{
+            entries.push_back(entry.path().filename());
+        }
+    }
+    return entries;
+
+}
+
 
 int main(int argc, char ** argv){
 
@@ -69,14 +94,8 @@ int main(int argc, char ** argv){
     
     /// int pid = fork();
     // Read all things in target directory
-    std::string path = dir;
-    for (const auto& entry : std::filesystem::directory_iterator(path)) {
-        //
-        if (entry.is_directory()){
-            std::cout << "Directory: " << entry.path().filename() << std::endl;
-        }else{
-            std::cout << entry.path().filename() << std::endl;
-        }
-    }
+    auto res = searchDirectory(dir);
+    for(auto s : res)
+        cout << s << endl;
     return 0;
 }
