@@ -71,7 +71,12 @@ int main(int argc, char ** argv){
     // Read all things in target directory
     std::string path = dir;
     for (const auto& entry : std::filesystem::directory_iterator(path)) {
-        std::cout << entry.path().filename() << std::endl;
+        //
+        if (entry.is_directory()){
+            std::cout << "Directory: " << entry.path().filename() << std::endl;
+        }else{
+            std::cout << entry.path().filename() << std::endl;
+        }
     }
     return 0;
 }
