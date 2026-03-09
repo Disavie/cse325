@@ -9,27 +9,40 @@
 
 using namespace std;
 
+struct Item{
+    string path;
+    string hash;
+    int sz;
+    
+
+};
+
 void err(string msg){
     cout << msg << endl;
 }
 
-vector<string> searchDirectory(string path){
-    vector<string> entries;
+
+
+vector<Item> searchDirectory(string path){
+    vector<Item> entries;
 
     
     for (const auto& entry : std::filesystem::directory_iterator(path)) {
-        //
         if (entry.is_directory()){
             string subdir = path;
             subdir = subdir + "/" + entry.path().filename().string();
             cout << subdir << endl;
-            vector<string> subdirEntries = searchDirectory(subdir);
+            vector<Item> subdirEntries = searchDirectory(subdir);
             //Append to entries
-            for(string s : subdirEntries){
+            for(Item s : subdirEntries){
                 entries.push_back(s);
             }
         }else{
-            entries.push_back(entry.path().filename());
+            entries.push_back(Item{
+                        entry.path().string(),
+                        "0", // todo
+                        (int)entry.file_size()
+                        });
         }
     }
     return entries;
@@ -95,7 +108,7 @@ int main(int argc, char ** argv){
     /// int pid = fork();
     // Read all things in target directory
     auto res = searchDirectory(dir);
-    for(auto s : res)
-        cout << s << endl;
+    for(Item s : res)
+        cout << s.sz << " " << s.hash << " " << s.path << endl;
     return 0;
 }
