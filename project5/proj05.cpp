@@ -3,6 +3,8 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <unistd.h>
+#include <filesystem>
 
 using namespace std;
 
@@ -25,12 +27,12 @@ int main(int argc, char ** argv){
 
     string manifestname = "baseline.manifest";
     string reportname = "report.txt";
-    string dir = ".";
+    string dir = "";
     int mode = -1;
     enum Mode{Init, Check};
     for (int i = 1; i < argc; i++) {
         string s(argv[i]);
-        if (s == "-d") dir = dir+"/"+argv[++i];
+        if (s == "-d") dir = argv[++i];
         if (s == "-m") manifestname = argv[++i];
         if (s == "-r" && mode == Mode::Check) reportname = argv[++i];
         if (s == "-c"){
@@ -49,8 +51,27 @@ int main(int argc, char ** argv){
             }
         }
     }
-    cout << dir << endl;
+    if (dir == "") err("bad directory");
+    if (mode == -1) err("neither -i nor -c was provided");
 
+    cout << "Target Directory: " << dir << endl;
 
+    // 2 - Walk directory tree & subdirectories
+    /**
+     * When scanning the target directory:
+     * 1. The scan must include all regular files in the directory and its subdirectories.
+     * 2. Ignore directories and ignore symbolic links.
+     * 3. The program must not crash if it encounters a file it cannot open. It must record the error in the
+     * report (check mode) or print an error message (init mode) and continue scanning other files.
+     * 4. If the manifest file or report file is located inside the target directory, your program must exclude
+     * those files from the scan.
+     */
+    
+    /// int pid = fork();
+    // Read all things in target directory
+    std::string path = dir;
+    for (const auto& entry : std::filesystem::directory_iterator(path)) {
+        std::cout << entry.path().filename() << std::endl;
+    }
     return 0;
 }
