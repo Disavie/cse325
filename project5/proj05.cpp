@@ -74,7 +74,6 @@ vector<Item> searchDirectory(string path){
         if (entry.is_directory()){
             string subdir = path;
             subdir = subdir + "/" + entry.path().filename().string();
-            cout << subdir << endl;
             vector<Item> subdirEntries = searchDirectory(subdir);
             //Append to entries
             for(Item s : subdirEntries){
@@ -136,7 +135,6 @@ int main(int argc, char ** argv){
     if (dir == "") err("bad directory");
     if (mode == -1) err("neither -i nor -c was provided");
 
-    cout << "Target Directory: " << dir << endl;
 
     // 2 - Walk directory tree & subdirectories
     /**
@@ -154,11 +152,14 @@ int main(int argc, char ** argv){
     auto res = searchDirectory(dir);
 
     // remove leading <dir> from all Item paths
-    for(Item &s : res){
+    for (Item &s : res) {
+        // removed leading dir
         s.path = s.path.substr(dir.size());
-        cout << s.sz << " " << s.hash << " " << s.path << endl;
-    }
 
+        // removes lingering / if it exists
+        if (!s.path.empty() && s.path[0] == '/')
+            s.path.erase(0, 1);
+    }
 
     /** step 4 - Manifest Format
     * In initialize baseline mode (-i), your program must write a manifest file with one line per file. Each line
@@ -175,7 +176,6 @@ int main(int argc, char ** argv){
             });
     if (mode == Mode::Init){
         ofstream handle(manifestname);
-        cout << manifestname << endl;
          
         for(Item &s : res){
             handle << s.sz << " " << s.hash << " " << s.path << endl;
@@ -183,7 +183,7 @@ int main(int argc, char ** argv){
         handle.close();
         
     }else if(mode == Mode::Check){
-
+        
         ifstream mhandle(manifestname);
         string line;
         vector<Item> cmp;
@@ -194,11 +194,57 @@ int main(int argc, char ** argv){
            iss >> item.sz >> item.hash >> item.path;
            cmp.push_back(item);
         }
+        ofstream rhandle(reportname);
 
-        for(Item &s : cmp){
-            cout << s.sz << " " << s.hash << " " << s.path << endl;
+        ///Heading
+        rhandle << "ADDED\n----------------------------------------------------------------------"
+            << endl;
+
+        for (Item &s : res) {
+            auto it = std::find_if(cmp.begin(), cmp.end(),
+                    [&](const Item& i){
+                    return i.path == s.path;
+                    });
+
+            if (it == cmp.end()) {
+                rhandle << s.path << " " << s.hash << endl;
+            }
         }
 
+        ///Heading
+        rhandle << "REMOVED\n----------------------------------------------------------------------"
+            << endl;
+
+        for (Item &s : cmp) {
+            auto it = std::find_if(res.begin(), res.end(),
+                    [&](const Item& i){
+                    return i.path == s.path;
+                    });
+
+            if (it == res.end()) {
+                rhandle << s.path << " " << s.hash << endl;
+            }
+        }
+
+        ///Heading
+        rhandle << "MODIFIED\n----------------------------------------------------------------------"
+            << endl;
+
+        for (Item &s : cmp) {
+            auto it = std::find_if(res.begin(), res.end(),
+                    [&](const Item& i){
+                    return i.path == s.path;
+                    });
+
+            if (it != res.end() && it->hash != s.hash) {
+                rhandle << s.path
+                    << " old:" << s.hash
+                    << " new:" << it->hash
+                    << endl;
+            }
+        }
+
+        rhandle.close();        
     }
     return 0;
 }
