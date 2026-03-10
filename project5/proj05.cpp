@@ -23,26 +23,27 @@ void err(string msg){
 }
 
 string readFile(string filename){
-    ifstream handler(filename);
-    if(!handler){
+    ifstream handler(filename,ios::binary);
+    if (!handler) {
+        err("problem opening file:");
+        err(filename);
         return "";
     }
-    string s;
-    string line;
-    while(getline(handler,line)){
-        s+=line;
-    }
+
+    string s((istreambuf_iterator<char>(handler)),
+            istreambuf_iterator<char>());
     handler.close();
     return s;
 }
 
 /// Byte array to hex string
-string bth(const unsigned char * bytes, size_t l){
-
+string bth(const unsigned char* bytes, size_t l) {
     stringstream ss;
 
+    ss << std::hex << std::setfill('0');
+
     for (size_t i = 0; i < l; ++i) {
-        ss << std::setw(2) << static_cast<int>(bytes[i]);
+        ss << std::setw(2) << static_cast<unsigned int>(bytes[i]);
     }
 
     return ss.str();
@@ -79,7 +80,7 @@ vector<Item> searchDirectory(string path){
                 entries.push_back(s);
             }
         }else{
-            string hash =sha256_hash(readFile(entry.path().filename().string()));
+            string hash =sha256_hash(readFile(entry.path().string()));
             entries.push_back(Item{
                         entry.path().string(),
                         hash, // todo
