@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <filesystem>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 
@@ -118,14 +119,14 @@ int main(int argc, char ** argv){
         if (s == "-r" && mode == Mode::Check) reportname = argv[++i];
         if (s == "-c"){
             if(mode == -1){
-                mode = Mode::Check; i++; 
+                mode = Mode::Check; 
             }else{
                 err("exactly one of -i -c expected");
             }
         }
         if (s == "-i"){ 
             if(mode == -1){
-                    mode = Mode::Init; i++; 
+                    mode = Mode::Init;
             }else{
                 err("exactly one of -i -c expected");
                     
@@ -151,7 +152,53 @@ int main(int argc, char ** argv){
     /// int pid = fork();
     // Read all things in target directory
     auto res = searchDirectory(dir);
-    for(Item s : res)
+
+    // remove leading <dir> from all Item paths
+    for(Item &s : res){
+        s.path = s.path.substr(dir.size());
         cout << s.sz << " " << s.hash << " " << s.path << endl;
+    }
+
+
+    /** step 4 - Manifest Format
+    * In initialize baseline mode (-i), your program must write a manifest file with one line per file. Each line
+    * must contain exactly three fields:
+    *    1. file size in bytes (unsigned integer)
+    *     2. SHA-256 hash (64 hex characters)
+    *    3. relative file path (relative to the target directory root)
+    *    The manifest must be deterministic:
+    *    1. Sort all entries by relative file path in ascending order before writing the manifest.
+    */
+    
+    sort(res.begin(),res.end(), [](const Item &a, const Item&b){
+            return a.path < b.path;
+            });
+    if (mode == Mode::Init){
+        ofstream handle(manifestname);
+        cout << manifestname << endl;
+         
+        for(Item &s : res){
+            handle << s.sz << " " << s.hash << " " << s.path << endl;
+        }
+        handle.close();
+        
+    }else if(mode == Mode::Check){
+
+        ifstream mhandle(manifestname);
+        string line;
+        vector<Item> cmp;
+        while(getline(mhandle,line)){
+           istringstream iss(line);
+           //item order is size - hash - path
+           Item item;
+           iss >> item.sz >> item.hash >> item.path;
+           cmp.push_back(item);
+        }
+
+        for(Item &s : cmp){
+            cout << s.sz << " " << s.hash << " " << s.path << endl;
+        }
+
+    }
     return 0;
 }
