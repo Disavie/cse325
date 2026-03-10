@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <iomanip>
 #include <unistd.h>
 #include <filesystem>
@@ -21,7 +22,47 @@ void err(string msg){
     cout << msg << endl;
 }
 
+string readFile(string filename){
+    ifstream handler(filename);
+    if(!handler){
+        return "";
+    }
+    string s;
+    string line;
+    while(getline(handler,line)){
+        s+=line;
+    }
+    handler.close();
+    return s;
+}
 
+/// Byte array to hex string
+string bth(const unsigned char * bytes, size_t l){
+
+    stringstream ss;
+
+    for (size_t i = 0; i < l; ++i) {
+        ss << std::setw(2) << static_cast<int>(bytes[i]);
+    }
+
+    return ss.str();
+}
+// Computes SHA256 hash of input string and returns hex digest
+string sha256_hash(const string& input) {
+
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int digest_len = 0;
+
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();  // create context
+
+    EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);  // initialize SHA256
+    EVP_DigestUpdate(ctx, input.c_str(), input.size());  // add data
+    EVP_DigestFinal_ex(ctx, digest, &digest_len);  // finalize hash
+
+    EVP_MD_CTX_free(ctx);  // free context
+
+    return bth(digest, digest_len);
+}
 
 vector<Item> searchDirectory(string path){
     vector<Item> entries;
@@ -38,9 +79,10 @@ vector<Item> searchDirectory(string path){
                 entries.push_back(s);
             }
         }else{
+            string hash =sha256_hash(readFile(entry.path().filename().string()));
             entries.push_back(Item{
                         entry.path().string(),
-                        "0", // todo
+                        hash, // todo
                         (int)entry.file_size()
                         });
         }
