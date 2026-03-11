@@ -66,7 +66,7 @@ string sha256_hash(const string& input) {
     return bth(digest, digest_len);
 }
 
-vector<Item> searchDirectory(string path){
+vector<Item> searchDirectory(string path,string manifestname, string reportname){
     vector<Item> entries;
 
     
@@ -74,18 +74,28 @@ vector<Item> searchDirectory(string path){
         err("Invalid Directory!");
     }
     for (const auto& entry : std::filesystem::directory_iterator(path)) {
+
+        if (entry.is_symlink())
+            continue;
+
+
         if (entry.is_directory()){
             string subdir = path;
             subdir = subdir + "/" + entry.path().filename().string();
-            vector<Item> subdirEntries = searchDirectory(subdir);
+            vector<Item> subdirEntries = searchDirectory(subdir, manifestname, reportname);
             //Append to entries
             for(Item s : subdirEntries){
                 entries.push_back(s);
             }
         }else{
+
+            string fname = entry.path().filename().string();
+
+            if (fname == manifestname || fname == reportname)
+                continue;
+
             string hash;
             try{
-                string contents = entry.path(); 
                 hash = sha256_hash(readFile(entry.path().string()));
             }catch(...){
                hash = "Error, could not parse file"; 
@@ -158,7 +168,7 @@ int main(int argc, char ** argv){
     
     /// int pid = fork();
     // Read all things in target directory
-    auto res = searchDirectory(dir);
+    auto res = searchDirectory(dir, manifestname, reportname);
 
     // remove leading <dir> from all Item paths
     for (Item &s : res) {
