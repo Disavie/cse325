@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <vector>
 #include <algorithm>
+#include <stdexcept>
 
 using namespace std;
 
@@ -21,14 +22,13 @@ struct Item{
 
 void err(string msg){
     cout << msg << endl;
+    exit(-1);
 }
 
 string readFile(string filename){
     ifstream handler(filename,ios::binary);
     if (!handler) {
-        err("problem opening file:");
-        err(filename);
-        return "";
+        throw std::runtime_error("oopsies");
     }
 
     string s((istreambuf_iterator<char>(handler)),
@@ -70,6 +70,9 @@ vector<Item> searchDirectory(string path){
     vector<Item> entries;
 
     
+    if (!std::filesystem::is_directory(path)){
+        err("Invalid Directory!");
+    }
     for (const auto& entry : std::filesystem::directory_iterator(path)) {
         if (entry.is_directory()){
             string subdir = path;
@@ -80,10 +83,16 @@ vector<Item> searchDirectory(string path){
                 entries.push_back(s);
             }
         }else{
-            string hash =sha256_hash(readFile(entry.path().string()));
+            string hash;
+            try{
+                string contents = entry.path(); 
+                hash = sha256_hash(readFile(entry.path().string()));
+            }catch(...){
+               hash = "Error, could not parse file"; 
+            }
             entries.push_back(Item{
                         entry.path().string(),
-                        hash, // todo
+                        hash, 
                         (int)entry.file_size()
                         });
         }
@@ -132,8 +141,8 @@ int main(int argc, char ** argv){
             }
         }
     }
-    if (dir == "") err("bad directory");
-    if (mode == -1) err("neither -i nor -c was provided");
+    if (dir == "") err("No directory provided");
+    if (mode == -1) err("Neither -i nor -c was provided");
 
 
     // 2 - Walk directory tree & subdirectories
@@ -176,7 +185,9 @@ int main(int argc, char ** argv){
             });
     if (mode == Mode::Init){
         ofstream handle(manifestname);
-         
+        if(!handle){
+            err("Manifest is missing or unable to be opened");
+        }
         for(Item &s : res){
             handle << s.sz << " " << s.hash << " " << s.path << endl;
         }
@@ -185,16 +196,38 @@ int main(int argc, char ** argv){
     }else if(mode == Mode::Check){
         
         ifstream mhandle(manifestname);
+        if(!mhandle){
+            err("Manifest is missing or unable to be opened");
+        }
         string line;
         vector<Item> cmp;
-        while(getline(mhandle,line)){
-           istringstream iss(line);
-           //item order is size - hash - path
-           Item item;
-           iss >> item.sz >> item.hash >> item.path;
-           cmp.push_back(item);
+        try {
+            while (getline(mhandle, line)) {
+                std::istringstream iss(line);
+
+                Item item;
+
+                // verify correct format
+                if (!(iss >> item.sz >> item.hash >> item.path)) {
+                    throw std::runtime_error("bad format");
+                }
+
+                // ensure no extra tokens
+                std::string extra;
+                if (iss >> extra) {
+                    throw std::runtime_error("too many fields");
+                }
+
+                if (item.sz < 0 || item.hash.empty() || item.path.empty()) {
+                    throw std::runtime_error("bad values");
+                }
+
+                cmp.push_back(item);
+            }
         }
-        ofstream rhandle(reportname);
+        catch (...) {
+            err("Malformed manifest");
+        }       ofstream rhandle(reportname);
 
         ///Heading
         rhandle << "ADDED\n----------------------------------------------------------------------"
