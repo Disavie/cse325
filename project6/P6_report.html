@@ -1,0 +1,213 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html><head></head><body>
+		
+		
+		
+			
+			
+			
+			
+		
+		
+			<div class="container">
+				<div class="info"> <h1>1: Compilation Attempt</h1> <div> Attempting to compile with the following:<br/><br/>g++ -std=c++20 -Wall -o executable proj07.cpp </div> </div>
+<div class="ok"> <h1>2: Compilation Success</h1> <div> The submission compiled successfully. </div> </div>
+
+<div class="info"> <h1>1: Evaluation Attempt</h1> <div> The following are your code output against 4 grading test cases </div> </div>
+<div class="test"> <h1>2: Test Case 1: Processes a single LDR instruction</h1> <div> <b>Grading Weight:</b> 1<br/><br/><b>Command:</b> ./executable -input input_single_ldr -ram ram1<b></br>stdout:</b><pre>LDR 5 0054 001 2 4 M 890a
+R0: 0000	R4: 0000	R8: 0000	Rc: 0000
+R1: 0000	R5: 890a	R9: 0000	Rd: 0000
+R2: 0000	R6: 0000	Ra: 0000	Re: 0000
+R3: 0000	R7: 0000	Rb: 0000	Rf: 0000
+
+     V M Tag  0  1  2  3  4  5  6  7
+------------------------------------
+[0]: 0 0 000 00 00 00 00 00 00 00 00
+[1]: 0 0 000 00 00 00 00 00 00 00 00
+[2]: 1 0 001 7b 00 23 cc 89 0a 00 ef
+[3]: 0 0 000 00 00 00 00 00 00 00 00
+[4]: 0 0 000 00 00 00 00 00 00 00 00
+[5]: 0 0 000 00 00 00 00 00 00 00 00
+[6]: 0 0 000 00 00 00 00 00 00 00 00
+[7]: 0 0 000 00 00 00 00 00 00 00 00
+
+0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0010: 00 00 00 00 00 00 00 00 00 00 00 00 70 00 00 00
+0020: 00 00 00 00 6d 00 00 00 00 00 00 00 00 00 00 00
+0030: 00 ff 00 00 00 00 00 00 00 00 00 00 00 00 00 23
+0040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0050: 7b 00 23 cc 89 0a 00 ef 00 ff 00 00 00 00 00 00
+0060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0070: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+</pre><b>stderr:</b><pre></pre> </div> </div>
+<div class="test"> <h1>3: Test Case 2: Processes a single STR instruction</h1> <div> <b>Grading Weight:</b> 1<br/><br/><b>Command:</b> ./executable -input input_single_str -ram ram1<b></br>stdout:</b><pre>STR 5 0054 001 2 4 M 0000
+R0: 0000	R4: 0000	R8: 0000	Rc: 0000
+R1: 0000	R5: 0000	R9: 0000	Rd: 0000
+R2: 0000	R6: 0000	Ra: 0000	Re: 0000
+R3: 0000	R7: 0000	Rb: 0000	Rf: 0000
+
+     V M Tag  0  1  2  3  4  5  6  7
+------------------------------------
+[0]: 0 0 000 00 00 00 00 00 00 00 00
+[1]: 0 0 000 00 00 00 00 00 00 00 00
+[2]: 1 1 001 7b 00 23 cc 00 00 00 ef
+[3]: 0 0 000 00 00 00 00 00 00 00 00
+[4]: 0 0 000 00 00 00 00 00 00 00 00
+[5]: 0 0 000 00 00 00 00 00 00 00 00
+[6]: 0 0 000 00 00 00 00 00 00 00 00
+[7]: 0 0 000 00 00 00 00 00 00 00 00
+
+0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0010: 00 00 00 00 00 00 00 00 00 00 00 00 70 00 00 00
+0020: 00 00 00 00 6d 00 00 00 00 00 00 00 00 00 00 00
+0030: 00 ff 00 00 00 00 00 00 00 00 00 00 00 00 00 23
+0040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0050: 7b 00 23 cc 89 0a 00 ef 00 ff 00 00 00 00 00 00
+0060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0070: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+</pre><b>stderr:</b><pre></pre> </div> </div>
+<div class="test"> <h1>4: Test Case 3: Processes multiple instructions</h1> <div> <b>Grading Weight:</b> 1<br/><br/><b>Command:</b> ./executable -input input_multiple -ram ram1<b></br>stdout:</b><pre>LDR a 0030 000 6 0 M 00ff
+LDR 3 0019 000 3 1 M 0000
+LDR 7 0071 001 6 1 M 0000
+LDR 1 ab27 2ac 4 7 M 0000
+R0: 0000	R4: 0000	R8: 0000	Rc: 0000
+R1: 0000	R5: 0000	R9: 0000	Rd: 0000
+R2: 0000	R6: 0000	Ra: 00ff	Re: 0000
+R3: 0000	R7: 0000	Rb: 0000	Rf: 0000
+
+     V M Tag  0  1  2  3  4  5  6  7
+------------------------------------
+[0]: 0 0 000 00 00 00 00 00 00 00 00
+[1]: 0 0 000 00 00 00 00 00 00 00 00
+[2]: 0 0 000 00 00 00 00 00 00 00 00
+[3]: 1 0 000 00 00 00 00 70 00 00 00
+[4]: 1 0 2ac 00 00 00 00 00 00 00 00
+[5]: 0 0 000 00 00 00 00 00 00 00 00
+[6]: 1 0 001 00 00 00 00 00 00 00 00
+[7]: 0 0 000 00 00 00 00 00 00 00 00
+
+0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0010: 00 00 00 00 00 00 00 00 00 00 00 00 70 00 00 00
+0020: 00 00 00 00 6d 00 00 00 00 00 00 00 00 00 00 00
+0030: 00 ff 00 00 00 00 00 00 00 00 00 00 00 00 00 23
+0040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0050: 7b 00 23 cc 89 0a 00 ef 00 ff 00 00 00 00 00 00
+0060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0070: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+</pre><b>stderr:</b><pre></pre> </div> </div>
+<div class="test"> <h1>5: Test Case 4: Processes multiple instructions with write-back</h1> <div> <b>Grading Weight:</b> 1<br/><br/><b>Command:</b> ./executable -input input_wb -ram ram2 -debug<b></br>stdout:</b><pre>R0: 0000	R4: 0000	R8: 0000	Rc: 0000
+R1: 0000	R5: 0000	R9: 0000	Rd: 0000
+R2: 0000	R6: 0000	Ra: 0000	Re: 0000
+R3: 0000	R7: 0000	Rb: 0000	Rf: 0000
+
+     V M Tag  0  1  2  3  4  5  6  7
+------------------------------------
+[0]: 0 0 000 00 00 00 00 00 00 00 00
+[1]: 0 0 000 00 00 00 00 00 00 00 00
+[2]: 0 0 000 00 00 00 00 00 00 00 00
+[3]: 0 0 000 00 00 00 00 00 00 00 00
+[4]: 0 0 000 00 00 00 00 00 00 00 00
+[5]: 0 0 000 00 00 00 00 00 00 00 00
+[6]: 0 0 000 00 00 00 00 00 00 00 00
+[7]: 0 0 000 00 00 00 00 00 00 00 00
+
+0000: cc cc cc cc cc cc cc cc 11 11 11 11 11 11 11 11
+0010: 22 22 22 22 22 22 22 22 33 33 33 33 33 33 33 33
+0020: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0050: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0070: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+LDR 5 001b 000 3 3 M 3333
+     V M Tag  0  1  2  3  4  5  6  7
+------------------------------------
+[0]: 0 0 000 00 00 00 00 00 00 00 00
+[1]: 0 0 000 00 00 00 00 00 00 00 00
+[2]: 0 0 000 00 00 00 00 00 00 00 00
+[3]: 1 0 000 33 33 33 33 33 33 33 33
+[4]: 0 0 000 00 00 00 00 00 00 00 00
+[5]: 0 0 000 00 00 00 00 00 00 00 00
+[6]: 0 0 000 00 00 00 00 00 00 00 00
+[7]: 0 0 000 00 00 00 00 00 00 00 00
+
+STR 2 001c 000 3 4 H 0000
+     V M Tag  0  1  2  3  4  5  6  7
+------------------------------------
+[0]: 0 0 000 00 00 00 00 00 00 00 00
+[1]: 0 0 000 00 00 00 00 00 00 00 00
+[2]: 0 0 000 00 00 00 00 00 00 00 00
+[3]: 1 1 000 33 33 33 33 00 00 33 33
+[4]: 0 0 000 00 00 00 00 00 00 00 00
+[5]: 0 0 000 00 00 00 00 00 00 00 00
+[6]: 0 0 000 00 00 00 00 00 00 00 00
+[7]: 0 0 000 00 00 00 00 00 00 00 00
+
+LDR 1 ebd8 3af 3 0 M aaaa
+     V M Tag  0  1  2  3  4  5  6  7
+------------------------------------
+[0]: 0 0 000 00 00 00 00 00 00 00 00
+[1]: 0 0 000 00 00 00 00 00 00 00 00
+[2]: 0 0 000 00 00 00 00 00 00 00 00
+[3]: 1 0 3af aa aa aa aa aa aa aa aa
+[4]: 0 0 000 00 00 00 00 00 00 00 00
+[5]: 0 0 000 00 00 00 00 00 00 00 00
+[6]: 0 0 000 00 00 00 00 00 00 00 00
+[7]: 0 0 000 00 00 00 00 00 00 00 00
+
+R0: 0000	R4: 0000	R8: 0000	Rc: 0000
+R1: aaaa	R5: 3333	R9: 0000	Rd: 0000
+R2: 0000	R6: 0000	Ra: 0000	Re: 0000
+R3: 0000	R7: 0000	Rb: 0000	Rf: 0000
+
+     V M Tag  0  1  2  3  4  5  6  7
+------------------------------------
+[0]: 0 0 000 00 00 00 00 00 00 00 00
+[1]: 0 0 000 00 00 00 00 00 00 00 00
+[2]: 0 0 000 00 00 00 00 00 00 00 00
+[3]: 1 0 3af aa aa aa aa aa aa aa aa
+[4]: 0 0 000 00 00 00 00 00 00 00 00
+[5]: 0 0 000 00 00 00 00 00 00 00 00
+[6]: 0 0 000 00 00 00 00 00 00 00 00
+[7]: 0 0 000 00 00 00 00 00 00 00 00
+
+0000: cc cc cc cc cc cc cc cc 11 11 11 11 11 11 11 11
+0010: 22 22 22 22 22 22 22 22 33 33 33 33 00 00 33 33
+0020: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0050: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0070: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+</pre><b>stderr:</b><pre></pre> </div> </div>
+			</div>  
+		
+		
+		<script type="module" src="https://s.brightspace.com/lib/bsi/2025.10.239/unbundled/mathjax.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+						if (document.querySelector('math, .d2l-element, .d2l-cplus-layout') || /\$\$|\\\(|\\\[|\\begin{|\\ref{|\\eqref{/.test(document.body.innerHTML)) {
+							document.querySelectorAll('mspace[linebreak="newline"]').forEach(elm => {
+								elm.setAttribute('style', 'display: block; height: 0.5rem;');
+							});
+
+							document.querySelectorAll('math mmultiscripts > none').forEach(elm => {
+								const mrow = document.createElementNS('http://www.w3.org/1998/Math/MathML', 'mrow');
+								elm.replaceWith(mrow);
+							});
+
+							window.D2L.MathJax.loadMathJax({
+								outputScale: 1.5,
+								renderLatex: true,
+								enableMML3Support: false
+							});
+						}
+					});</script><script type="module" src="https://s.brightspace.com/lib/bsi/2025.10.239/unbundled/prism.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+					document.querySelectorAll('.d2l-code').forEach(code => {
+						window.D2L.Prism.formatCodeElement(code);
+					});
+				});</script><script type="module" src="https://s.brightspace.com/lib/bsi/2025.10.239/unbundled/embeds.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+					window.D2L.EmbedRenderer.renderEmbeds(document.body);
+				});</script></body></html>
