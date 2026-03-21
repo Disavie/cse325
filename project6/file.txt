@@ -1,0 +1,151 @@
+
+--- Page 1 ---
+
+CSE 325 - Project 6
+Project Overview
+This project focuses on the interactions between registers, the data cache, and primary storage. You
+will design and implement the C/C++ program which is described below. Please submit your work for
+grading via the D2L system.
+Project Deliverable
+The deliverable for this assignment is the following files:
+proj06.cpp – your program code
+Project Specifications
+The system to be simulated is a 16-bit microprocessor: it has sixteen 16-bit general purpose registers
+and 16-bit physical addresses (and thus has 65,536 bytes of RAM). The data cache is a direct-mapped,
+write-back cache which contains eight lines. Each cache line contains control bits (valid bit, modified
+bit, and tag bits) and an 8-byte data block.
+1. The program will simulate the interactions between the register unit, the data cache, and primary
+storage by processing a file which contains zero or more instructions. Each line of the file will contain
+the following information:
+a) Operation (“LDR” for “load into register” or “STR” for “store from register”)
+b) Register number (one hexadecimal digit)
+c) Physical address (four hexadecimal digits, with leading zeroes)
+Items in the line will be separated by exactly one space, and each line will terminate with a newline. For
+example:
+LDR 5 ebd8
+STR 4 0ac2
+LDR a 0ad0
+The first line represents an instruction where the two bytes at address ebd8 of RAM are loaded into
+register 5, and the second line represents an instruction where the two bytes in register 4are stored into
+address 0ac2 of RAM.
+2. For each memory reference in the file, the program will display one line with the following information:
+a) Operation (“LDR” or “STR”)
+b) Register number (one hexadecimal digit)
+1
+
+--- Page 2 ---
+
+c) Physical address (four hexadecimal digits, with leading zeroes)
+d) Tag bits (three hexadecimal digits, with leading zeroes)
+e) Cache line accessed (one hexadecimal digit)
+f) Byte offset (one hexadecimal digit)
+g) Result of access (one character; ‘H’ for hit and ‘M’ for miss)
+h) Data value (four hexadecimal digits, with leading zeroes)
+If the operation is “LDR”, the data value will be the 2-byte value which is being copied from the data
+cache to the indicated register. If the operation is “STR”, the data value will be the 2-byte value which
+is being copied from the indicated register into the data cache.
+Items in the line will be separated by exactly one space, and the line will terminate with a newline. For
+example:
+LDR e a73c 29c 7 4 H 3f29
+STR 1 58d6 163 2 6 M 1020
+3. After the simulation is completed, the program will display the contents of the registers, the data
+cache, and RAM.
+a) The contents of all sixteen registers will be displayed, where each 4-bit register number is displayed in
+hexadecimal and the 16-bit contents are displayed in hexadecimal (four hexadecimal digits, with leading
+zeroes). For example:
+Registers:
+R0: 0000 R1: 0057 R2: 0000 R3: 0000
+R4: 0000 R5: 0000 R6: 0000 R7: 0000
+R8: 0000 R9: 0000 Ra: 00ff Rb: 0000
+Rc: 0000 Rd: 0000 Re: 0000 Rf: 0000
+b) The contents of the data cache will be displayed, with one line for each data cache entry:
+I) index of the data cache entry (one hexadecimal digit)
+II) V bit (one character; ‘0’ for not valid, ‘1’ for valid)
+III) M bit (one character; ‘0’ for not modified, ‘1’ for modified)
+IV) tag bits (three hexadecimal digits, with leading zeroes)
+V) data block (eight bytes of data, where each byte is given as two hexadecimal digits, with leading
+zeroes)
+The data cache display will include appropriate column headers. For example:
+Cache Contents:
+V M Tag 0 1 2 3 4 5 6 7
+0 0 0 000 00 00 00 00 00 00 00 00
+1 0 0 000 00 00 00 00 00 00 00 00
+2 0 0 000 00 00 00 00 00 00 00 00
+3 1 0 000 00 00 00 00 70 00 00 00
+4 1 0 2ac 00 00 00 00 00 00 00 00
+5 0 0 000 00 00 00 00 00 00 00 00
+6 1 0 001 00 00 00 00 00 00 00 00
+7 0 0 000 00 00 00 00 00 00 00 00
+2
+
+--- Page 3 ---
+
+c) The contents of the first 128 bytes of RAM will be displayed. Each line of that display will include
+an address (four hexadecimal digits, with leading zeroes) and the sixteen bytes of data starting at that
+address (two hexadecimal digits, with leading zeroes). For example:
+RAM Contents (First 128 Bytes):
+0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0010: 00 00 00 00 00 00 00 00 00 00 00 00 70 00 00 00
+0020: 00 00 00 00 6d 00 00 00 00 00 00 00 00 00 00 00
+0030: 00 ff 00 00 00 00 00 00 00 00 00 00 00 00 00 23
+0040: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0050: 7b 00 23 cc 89 0a 00 ef 00 ff 00 00 00 00 00 00
+0060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0070: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Note: the example displays (above) are only intended to illustrate the format of the output.
+4. Command line arguments will be used to specify the name of the file which contains the instructions
+to be processed (the “-input” option), the name of the file which contains the initial contents of RAM
+(the “-ram” option), and to display debugging information (the “-debug” option).
+a) The “-input” option will be followed by the name of the file which contains zero or more instructions
+(as defined above).
+b) If selected, the ”-ram” option will be followed by the name of the file which contains the initial
+contents of a subset of RAM. Each line of that file will contain an address which is a multiple of 16 (four
+hexadecimal digits, with leading zeroes), followed by sixteen bytes of data (two hexadecimal digits, with
+leading zeroes). For example:
+0000 cc cc cc cc cc cc cc cc 11 11 11 11 11 11 11 11
+0010 22 22 22 22 22 22 22 22 33 33 33 33 33 33 33 33
+ebd0 dd dd dd dd dd dd dd dd aa aa aa aa aa aa aa aa
+5. If selected, the “-debug” option will cause the program to display the following debugging information:
+a) After all program initialization has occurred and immediately before the first line of the “-input”
+file is processed, the program will display the contents of the registers, the data cache, and RAM (using
+the same format as #3 above).
+b) The contents of the data cache after each instruction is processed.
+6. The program will include appropriate logic to handle exceptional cases and errors.
+Assignment Notes
+1. As stated above, your source code file will be named “proj06.cpp” and you must use “g++” to
+translate your source code file in the scully Linux environment.
+2. Valid executions of the program might appear as follows:
+./proj06 -input testA
+./proj06 -debug -input testB
+3
+
+--- Page 4 ---
+
+./proj06 -ram initialRAM -input testC
+./proj06 -ram initialRAM -input testD -debug
+3. Your program may assume that the “-input” and the “-ram” files are formatted correctly:
+a) If the “-input” file can be accessed, the contents will be valid as per #1 under “Project Specifi-
+cations”.
+b) If the “-ram” file can be accessed, the contents will be valid as per #4 under “Project Specifi-
+cations”.
+4. Your program must create the following data structures:
+a) A data structure representing the registers. All sixteen registers will be initialized to zero at the
+start of the simulation.
+b) A data structure representing the data cache. All of the entries will be initialized to zero at the
+start of the simulation.
+c) A data structure representing the RAM. All of the entries will be initialized to zero at the start
+of the simulation. If the user selects the “-ram” option, a subset of the RAM will be re-initialized
+using the contents of the specified file.
+5. Assume that the microprocessor uses a “big endian” memory model: the most significant byte of
+a 2-byte item is stored in the lowest numbered memory address, and the least significant byte is
+stored at the highest numbered memory address.
+For example, if the value 0xabcd is copied into memory at address 0x0214, then the byte at address
+0x0214 in RAM will contain the value 0xab and the byte at address 0x0215 in RAM will contain
+the value 0xcd.
+6. Assume that the microprocessor uses an aligned memory model: the address of a 2-byte item will
+always be a multiple of 2 (and thus the least significant bit will be 0).
+7. This project will be graded based on a similarity metric. Your goal should be to produce an output
+identical to the shared test cases (whitespace formatting does not matter).
+8. You should still develop your own set of test cases which considers edge cases such as wrong input
+commands. However, you can assume an input file (if exists) to be formatted correctly.
+4
