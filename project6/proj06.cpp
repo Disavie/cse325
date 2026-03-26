@@ -1,125 +1,241 @@
 #include <iostream>
-#include <algorithm>
-#include <vector>
 #include <fstream>
-#include <cstdint>
-#include <string>
-#include <array>
+#include <iomanip>
+#include <vector>
+#include <cstring>
 
-using std::string, std::array;
-using std::cout, std::endl, std::string, std::vector;
+using namespace std;
 
-// Registers:
-// R0: 0000 R1: 0057 R2: 0000 R3: 0000
-// R4: 0000 R5: 0000 R6: 0000 R7: 0000
-// R8: 0000 R9: 0000 Ra: 00ff Rb: 0000
-// Rc: 0000 Rd: 0000 Re: 0000 Rf: 0000
-struct Register{
-   uint16_t data = 0x0000;     
+// ---------------- CONSTANTS ----------------
+const int RAM_SIZE = 65536;
+const int NUM_REGS = 16;
+const int CACHE_LINES = 8;
+const int BLOCK_SIZE = 8;
+
+// ---------------- STRUCTURES ----------------
+struct CacheLine {
+    bool valid;
+    bool modified;
+    unsigned short tag;
+    unsigned char data[BLOCK_SIZE];
 };
-array<Register,16> registers;
 
-// The data cache display will include appropriate column headers. For example:
-// Cache Contents:
-// V M Tag 0 1 2 3 4 5 6 7
-// 0 0 0 000 00 00 00 00 00 00 00 00
-// 1 0 0 000 00 00 00 00 00 00 00 00
-struct CacheLine{
-    int v = 0x0; /// < valid bit
-    int m = 0x0; /// < modified bit
-    int mag = 0x0; /// < tag
-    uint8_t data[8] = {0}; //8 bytes initialized to 0
+// ---------------- GLOBALS ----------------
+unsigned short REG[NUM_REGS];
+unsigned char RAM[RAM_SIZE];
+CacheLine CACHE[CACHE_LINES];
 
-};
-/// Cache is direct mapped ie CacheLine = Address mod CacheLineSize (8)
-array<CacheLine,8> cache;
-
-// RAM Contents (First 128 Bytes):
-// 0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-// 0010: 00 00 00 00 00 00 00 00 00 00 00 00 70 00 00 00
-struct RAM{
-    std::vector<uint8_t> memory{128, 0};
-};
-/// RAM[0xABCD + offset] to get the data
-///
-void loadRam(std::ifstream &ramfile){
-        
-
-    string s((std::istreambuf_iterator<char>(ramfile)),
-            std::istreambuf_iterator<char>());
-    cout << s << endl;
-    ramfile.close();
+// ---------------- UTIL ----------------
+unsigned short hexToShort(string s) {
+    return (unsigned short) stoi(s, nullptr, 16);
 }
 
-int main(int argc, char ** argv){
+string toHex(int val, int width) {
+    stringstream ss;
+    ss << hex << setw(width) << setfill('0') << nouppercase << val;
+    return ss.str();
+}
 
-// Items in the line will be separated by exactly one space, and each line will terminate with a newline. For
-// example:
-// LDR 5 ebd8
-// STR 4 0ac2
-// LDR a 0ad0
+// ---------------- INIT ----------------
+void initSystem() {
+    memset(REG, 0, sizeof(REG));
+    memset(RAM, 0, sizeof(RAM));
 
-    /**
-     * Options are;
-     * -input [FILE]
-     * -debug
-     * -ram [FILE]
-     */
-    string inputFilename;
-    string ramFilename;
+    for (int i = 0; i < CACHE_LINES; i++) {
+        CACHE[i].valid = 0;
+        CACHE[i].modified = 0;
+        CACHE[i].tag = 0;
+        memset(CACHE[i].data, 0, BLOCK_SIZE);
+    }
+}
+
+// ---------------- RAM LOAD ----------------
+void loadRAM(string filename) {
+    ifstream file(filename);
+    string addr;
+    while (file >> addr) {
+        int base = hexToShort(addr);
+        for (int i = 0; i < 16; i++) {
+            string byte;
+            file >> byte;
+            RAM[base + i] = (unsigned char) hexToShort(byte);
+        }
+    }
+}
+
+// ---------------- CACHE WRITE BACK ----------------
+void writeBack(int index) {
+    if (CACHE[index].valid && CACHE[index].modified) {
+        unsigned short tag = CACHE[index].tag;
+        int baseAddr = (tag << 6) | (index << 3);
+
+        for (int i = 0; i < BLOCK_SIZE; i++) {
+            RAM[baseAddr + i] = CACHE[index].data[i];
+        }
+    }
+}
+
+// ---------------- LOAD BLOCK ----------------
+void loadBlock(int index, unsigned short tag, unsigned short addr) {
+    writeBack(index);
+
+    int baseAddr = addr & 0xFFF8; // align to 8-byte block
+
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        CACHE[index].data[i] = RAM[baseAddr + i];
+    }
+
+    CACHE[index].tag = tag;
+    CACHE[index].valid = 1;
+    CACHE[index].modified = 0;
+}
+
+// ---------------- CACHE ACCESS ----------------
+unsigned short accessCache(string op, int regNum, unsigned short addr, bool &hit) {
+
+    int offset = addr & 0x7;
+    int index = (addr >> 3) & 0x7;
+    int tag = (addr >> 6) & 0x3FF;
+
+    CacheLine &line = CACHE[index];
+
+    if (line.valid && line.tag == tag) {
+        hit = true;
+    } else {
+        hit = false;
+        loadBlock(index, tag, addr);
+    }
+
+    // BIG ENDIAN
+    if (op == "LDR") {
+        unsigned short value =
+            (line.data[offset] << 8) |
+            (line.data[offset + 1]);
+
+        REG[regNum] = value;
+        return value;
+    } else { // STR
+        unsigned short value = REG[regNum];
+
+        line.data[offset]     = (value >> 8) & 0xFF;
+        line.data[offset + 1] = value & 0xFF;
+
+        line.modified = 1;
+        return value;
+    }
+}
+
+// ---------------- PRINT FUNCTIONS ----------------
+void printRegisters() {
+    cout << "\n";
+
+    for (int row = 0; row < 4; row++) {
+        for (int col = 0; col < 4; col++) {
+            int i = row + col * 4;
+
+            cout << "R" << hex << nouppercase << i << ": "
+                 << setw(4) << setfill('0') << REG[i];
+
+            if (col < 3) cout << "\t";
+        }
+        cout << "\n";
+    }
+}
+
+void printCache() {
+    cout << "\n";
+    cout << "     V M Tag  0  1  2  3  4  5  6  7\n";
+    cout << "------------------------------------\n";
+
+    for (int i = 0; i < CACHE_LINES; i++) {
+        cout << "[" << hex << i << "]: "
+             << CACHE[i].valid << " "
+             << CACHE[i].modified << " "
+             << setw(3) << setfill('0') << CACHE[i].tag << " ";
+
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            cout << setw(2) << setfill('0')
+                 << hex << (int)CACHE[i].data[j];
+
+            if (j < BLOCK_SIZE - 1) cout << " ";
+        }
+        cout << "\n";
+    }
+}
+
+void printRAM() {
+    cout << "\n";
+
+    for (int i = 0; i < 128; i += 16) {
+        cout << setw(4) << setfill('0') << hex << nouppercase << i << ": ";
+
+        for (int j = 0; j < 16; j++) {
+            cout << setw(2) << setfill('0')
+                 << (int)RAM[i + j];
+
+            if (j < 15) cout << " ";
+        }
+        cout << "\n";
+    }
+}
+
+// ---------------- MAIN ----------------
+int main(int argc, char* argv[]) {
+        cout << hex << nouppercase;
+    string inputFile, ramFile;
     bool debug = false;
 
     for (int i = 1; i < argc; i++) {
-        string s(argv[i]);
-        if (s == "-debug") debug = true;
-        if (s == "-ram") ramFilename= argv[++i];
-        if (s == "-input") inputFilename = argv[++i];
+        string arg = argv[i];
+        if (arg == "-input") inputFile = argv[++i];
+        else if (arg == "-ram") ramFile = argv[++i];
+        else if (arg == "-debug") debug = true;
     }
 
-    std::ifstream ifh(inputFilename);
+    initSystem();
 
-    std::ifstream rfh(ramFilename);
+    if (!ramFile.empty()) loadRAM(ramFile);
 
-    if( !rfh ){
-        std::cerr << "Error with ram file" << endl;
-        return 1;
-    }else{
-        loadRam(rfh);
+    if (debug) {
+        printRegisters();
+        printCache();
+        printRAM();
     }
 
-    if( !ifh ){
-        std::cerr << "Error with input file" << endl;
-        return 1;
+    ifstream input(inputFile);
+    string op, reg, addr;
+
+    while (input >> op >> reg >> addr) {
+
+        int regNum = hexToShort(reg);
+        unsigned short address = hexToShort(addr);
+
+        int offset = address & 0x7;
+        int index = (address >> 3) & 0x7;
+        int tag = (address >> 6) & 0x3FF;
+
+        bool hit;
+        unsigned short data = accessCache(op, regNum, address, hit);
+
+        cout << op << " "
+            << hex << nouppercase
+            << reg << " "
+            << setw(4) << setfill('0') << addr << " "
+            << setw(3) << setfill('0') << tag << " "
+            << index << " "
+            << offset << " "
+            << (hit ? "H" : "M") << " "
+            << setw(4) << setfill('0') << data
+            << "\n";
+
+        if (debug) {
+            printCache();
+        }
     }
 
+    printRegisters();
+    printCache();
+    printRAM();
 
-
-
-// 3. Your program may assume that the “-input” and the “-ram” files are formatted correctly:
-// a) If the “-input” file can be accessed, the contents will be valid as per #1 under “Project Specifi-
-// cations”.
-// b) If the “-ram” file can be accessed, the contents will be valid as per #4 under “Project Specifi-
-// cations”.
-//
-// 4. Your program must create the following data structures:
-// a) A data structure representing the registers. All sixteen registers will be initialized to zero at the
-// start of the simulation.
-// b) A data structure representing the data cache. All of the entries will be initialized to zero at the
-// start of the simulation.
-// c) A data structure representing the RAM. All of the entries will be initialized to zero at the start
-// of the simulation. If the user selects the “-ram” option, a subset of the RAM will be re-initialized
-// using the contents of the specified file.
-// 5. Assume that the microprocessor uses a “big endian” memory model: the most significant byte of
-// a 2-byte item is stored in the lowest numbered memory address, and the least significant byte is
-// stored at the highest numbered memory address.
-// For example, if the value 0xabcd is copied into memory at address 0x0214, then the byte at address
-// 0x0214 in RAM will contain the value 0xab and the byte at address 0x0215 in RAM will contain
-// the value 0xcd.
-// 6. Assume that the microprocessor uses an aligned memory model: the address of a 2-byte item will
-// always be a multiple of 2 (and thus the least significant bit will be 0).
-// 7. This project will be graded based on a similarity metric. Your goal should be to produce an output
-// identical to the shared test cases (whitespace formatting does not matter).
-// 8. You should still develop your own set of test cases which considers edge cases such as wrong input
-// commands. However, you can assume an input file (if exists) to be formatted correctly.
     return 0;
 }
