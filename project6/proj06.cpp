@@ -3,7 +3,10 @@
 #include <vector>
 #include <fstream>
 #include <cstdint>
- 
+#include <string>
+#include <array>
+
+using std::string, std::array;
 using std::cout, std::endl, std::string, std::vector;
 
 // Registers:
@@ -14,7 +17,7 @@ using std::cout, std::endl, std::string, std::vector;
 struct Register{
    uint16_t data = 0x0000;     
 };
-vector<Register,16> registers;
+array<Register,16> registers;
 
 // The data cache display will include appropriate column headers. For example:
 // Cache Contents:
@@ -29,15 +32,24 @@ struct CacheLine{
 
 };
 /// Cache is direct mapped ie CacheLine = Address mod CacheLineSize (8)
-vector<CacheLine,8> cache;
+array<CacheLine,8> cache;
 
 // RAM Contents (First 128 Bytes):
 // 0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 // 0010: 00 00 00 00 00 00 00 00 00 00 00 00 70 00 00 00
 struct RAM{
-    vector<uint8_t> 128 memory = {0};
+    std::vector<uint8_t> memory{128, 0};
 };
 /// RAM[0xABCD + offset] to get the data
+///
+void loadRam(std::ifstream &ramfile){
+        
+
+    string s((std::istreambuf_iterator<char>(ramfile)),
+            std::istreambuf_iterator<char>());
+    cout << s << endl;
+    ramfile.close();
+}
 
 int main(int argc, char ** argv){
 
@@ -47,13 +59,48 @@ int main(int argc, char ** argv){
 // STR 4 0ac2
 // LDR a 0ad0
 
-   cout << "Hello world" << endl;
+    /**
+     * Options are;
+     * -input [FILE]
+     * -debug
+     * -ram [FILE]
+     */
+    string inputFilename;
+    string ramFilename;
+    bool debug = false;
+
+    for (int i = 1; i < argc; i++) {
+        string s(argv[i]);
+        if (s == "-debug") debug = true;
+        if (s == "-ram") ramFilename= argv[++i];
+        if (s == "-input") inputFilename = argv[++i];
+    }
+
+    std::ifstream ifh(inputFilename);
+
+    std::ifstream rfh(ramFilename);
+
+    if( !rfh ){
+        std::cerr << "Error with ram file" << endl;
+        return 1;
+    }else{
+        loadRam(rfh);
+    }
+
+    if( !ifh ){
+        std::cerr << "Error with input file" << endl;
+        return 1;
+    }
+
+
+
 
 // 3. Your program may assume that the “-input” and the “-ram” files are formatted correctly:
 // a) If the “-input” file can be accessed, the contents will be valid as per #1 under “Project Specifi-
 // cations”.
 // b) If the “-ram” file can be accessed, the contents will be valid as per #4 under “Project Specifi-
 // cations”.
+//
 // 4. Your program must create the following data structures:
 // a) A data structure representing the registers. All sixteen registers will be initialized to zero at the
 // start of the simulation.
