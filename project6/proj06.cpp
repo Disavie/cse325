@@ -3,16 +3,15 @@
 #include <iomanip>
 #include <vector>
 #include <cstring>
+//thank you chat gpt for formatting the printing so there is minimal diffing between my stdout and expected stdout:w
 
 using namespace std;
 
-// ---------------- CONSTANTS ----------------
 const int RAM_SIZE = 65536;
 const int NUM_REGS = 16;
 const int CACHE_LINES = 8;
 const int BLOCK_SIZE = 8;
 
-// ---------------- STRUCTURES ----------------
 struct CacheLine {
     bool valid;
     bool modified;
@@ -20,12 +19,10 @@ struct CacheLine {
     unsigned char data[BLOCK_SIZE];
 };
 
-// ---------------- GLOBALS ----------------
 unsigned short REG[NUM_REGS];
 unsigned char RAM[RAM_SIZE];
 CacheLine CACHE[CACHE_LINES];
 
-// ---------------- UTIL ----------------
 unsigned short hexToShort(string s) {
     return (unsigned short) stoi(s, nullptr, 16);
 }
@@ -36,7 +33,6 @@ string toHex(int val, int width) {
     return ss.str();
 }
 
-// ---------------- INIT ----------------
 void initSystem() {
     memset(REG, 0, sizeof(REG));
     memset(RAM, 0, sizeof(RAM));
@@ -49,7 +45,6 @@ void initSystem() {
     }
 }
 
-// ---------------- RAM LOAD ----------------
 void loadRAM(string filename) {
     ifstream file(filename);
     string addr;
@@ -63,7 +58,6 @@ void loadRAM(string filename) {
     }
 }
 
-// ---------------- CACHE WRITE BACK ----------------
 void writeBack(int index) {
     if (CACHE[index].valid && CACHE[index].modified) {
         unsigned short tag = CACHE[index].tag;
@@ -75,7 +69,6 @@ void writeBack(int index) {
     }
 }
 
-// ---------------- LOAD BLOCK ----------------
 void loadBlock(int index, unsigned short tag, unsigned short addr) {
     writeBack(index);
 
@@ -90,7 +83,6 @@ void loadBlock(int index, unsigned short tag, unsigned short addr) {
     CACHE[index].modified = 0;
 }
 
-// ---------------- CACHE ACCESS ----------------
 unsigned short accessCache(string op, int regNum, unsigned short addr, bool &hit) {
 
     int offset = addr & 0x7;
@@ -179,7 +171,6 @@ void printRAM() {
     }
 }
 
-// ---------------- MAIN ----------------
 int main(int argc, char* argv[]) {
         cout << hex << nouppercase;
     string inputFile, ramFile;
