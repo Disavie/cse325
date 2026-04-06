@@ -256,10 +256,14 @@ void populate_page_table(process_t * p){
         ss >> check;
         if (check == "-"){
             page_line.frame = -1;
+        }else{
+            page_line.frame = std::stoi(check);
         }
         ss >> check;
         if (check == "-"){
             page_line.disk_area = -1;
+        }else{
+            page_line.disk_area = std::stoi(check);
         }
 
        page_table[i++] = page_line;
@@ -289,6 +293,29 @@ void print_page_table(process_t * p){
         }
         cout << '\n';
     }
+}
+
+short unsigned validate(process_t * p, string instr, short addr, int offset){
+
+    short unsigned d = -1;
+    // search in page table
+    page_line_t pline = (p->page_table)[addr];
+    /*
+    cout << "addr = " << addr << 
+        "\npline : present = " << pline.present <<
+        "\npline : frame = " << pline.frame << endl;
+        */
+
+    if (pline.present ){
+        short pa = (pline.frame << 4) | offset;
+        cout << "PA = 0x" << hex << pa << endl;
+    }else{
+        int disk_area = pline.disk_area;
+        //retrieve from disk
+        cout << "Need to retrieve from disk for " << instr << " at " << addr << offset << endl;
+    }
+
+    return d;
 }
 
 
@@ -329,25 +356,23 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < process_count; i++) {
         process_t p{};
         input >> p.name >> p.page_count;
-        std::cout << p.name << ' ' << p.page_count << std::endl;
         processes.push_back(p);
     }
 
     for(int i = 0 ; i < process_count ; i++ ){
         auto *p = &processes[i];
         populate_page_table(p);
-        print_page_table(p);
     }
 
      if (debug) {
          printRegisters();
-//         printCache();
          printRAM();
          printDisk();
+         //printCache();
          for (auto p : processes)
              print_page_table(&p);
      }
-    exit(1);
+     //exit(1);
 
     string pname, instr, vaddr;
     
@@ -357,13 +382,29 @@ int main(int argc, char* argv[]) {
         
         //int regNum = hexToShort(reg);
         unsigned short address = hexToShort(vaddr);
+        int vpn = (address >> 4) & 0xF;
+        int offset = address & 0x0F;
 
-        int offset = address & 0x7;
-        int index = (address >> 3) & 0x7;
-        int tag = (address >> 6) & 0x3FF;
+        cout << vpn << ' ' << offset << endl;
+
+
+//        int tag = (address >> 6) & 0x3FF;
 
         bool hit;
-        //unsigned short data = accessCache(op, regNum, address, hit);
+        unsigned short data;
+
+        for(int i = 0 ; i < process_count ; i++ ){
+            auto *p = &processes[i];
+            if (p->name == pname){
+                //print_page_table(p);
+                data = validate(p,instr,vpn,offset);
+            }
+        }
+
+        if (data == -1){
+            exit(1);
+        }
+        continue;
 
         /*
         cout << op << " "
