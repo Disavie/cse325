@@ -14,6 +14,9 @@ const int NUM_REGS = 16;
 const int CACHE_LINES = 8;
 const int BLOCK_SIZE = 8;
 
+const int RAM_LINE_BYTES = 16;
+const int RAM_LINES = 8;
+
 // new for proj7
 const int DISK_SIZE = 32;
 const int PAGE_COUNT = 16;
@@ -42,8 +45,18 @@ typedef struct {
 
 }process_t;
 
+typedef struct{
+    int data[RAM_LINE_BYTES];
+}ram_line_t;
+
+typedef struct{
+   ram_line_t lines[RAM_LINES]; 
+}ram_t;
+
+ram_t RAM;
+
 unsigned short REG[NUM_REGS];
-unsigned char RAM[RAM_SIZE];
+
 unsigned char Disk[DISK_SIZE];
 CacheLine CACHE[CACHE_LINES];
 
@@ -59,7 +72,7 @@ string toHex(int val, int width) {
 
 void initSystem() {
     memset(REG, 0, sizeof(REG));
-    memset(RAM, 0, sizeof(RAM));
+//    memset(RAM, 0, sizeof(RAM));
 
     for (int i = 0; i < CACHE_LINES; i++) {
         CACHE[i].valid = 0;
@@ -72,17 +85,23 @@ void initSystem() {
 
 void loadRAM(string filename) {
     ifstream file(filename);
-    string addr;
-    while (file >> addr) {
-        int base = hexToShort(addr);
+    string frame;
+
+    //skip first 2 lines
+    std::getline(file,frame);
+    std::getline(file,frame);
+
+    while (file >> frame) {
+        int base = hexToShort(frame);
         for (int i = 0; i < 16; i++) {
             string byte;
             file >> byte;
-            RAM[base + i] = (unsigned char) hexToShort(byte);
+
+            RAM.lines[base].data[i] = (unsigned char) hexToShort(byte);
         }
     }
 }
-
+/*
 void writeBack(int index) {
     if (CACHE[index].valid && CACHE[index].modified) {
         unsigned short tag = CACHE[index].tag;
@@ -93,7 +112,8 @@ void writeBack(int index) {
         }
     }
 }
-
+*/
+/*
 void loadBlock(int index, unsigned short tag, unsigned short addr) {
     writeBack(index);
 
@@ -107,7 +127,7 @@ void loadBlock(int index, unsigned short tag, unsigned short addr) {
     CACHE[index].valid = 1;
     CACHE[index].modified = 0;
 }
-
+*/
 unsigned short accessCache(string op, int regNum, unsigned short addr, bool &hit) {
 
     int offset = addr & 0x7;
@@ -120,7 +140,7 @@ unsigned short accessCache(string op, int regNum, unsigned short addr, bool &hit
         hit = true;
     } else {
         hit = false;
-        loadBlock(index, tag, addr);
+        //loadBlock(index, tag, addr);
     }
 
     // BIG ENDIAN
@@ -183,12 +203,12 @@ void printCache() {
 void printRAM() {
     cout << "\n";
 
-    for (int i = 0; i < 128; i += 16) {
+    for (int i = 0; i < RAM_LINES; i++) {
         cout << setw(4) << setfill('0') << hex << nouppercase << i << ": ";
 
         for (int j = 0; j < 16; j++) {
             cout << setw(2) << setfill('0')
-                 << (int)RAM[i + j];
+                 << (int)RAM.lines[i].data[j];
 
             if (j < 15) cout << " ";
         }
@@ -300,19 +320,15 @@ short unsigned validate(process_t * p, string instr, short addr, int offset){
     short unsigned d = -1;
     // search in page table
     page_line_t pline = (p->page_table)[addr];
-    /*
-    cout << "addr = " << addr << 
-        "\npline : present = " << pline.present <<
-        "\npline : frame = " << pline.frame << endl;
-        */
 
     if (pline.present ){
         short pa = (pline.frame << 4) | offset;
         cout << "PA = 0x" << hex << pa << endl;
+        cout << RAM.lines[pline.frame].data[offset]<< endl;
     }else{
+        //page replacement 
         int disk_area = pline.disk_area;
-        //retrieve from disk
-        cout << "Need to retrieve from disk for " << instr << " at " << addr << offset << endl;
+//        cout << "Need to retrieve from disk for " << instr << " at " << addr << offset << endl;
     }
 
     return d;
@@ -372,7 +388,6 @@ int main(int argc, char* argv[]) {
          for (auto p : processes)
              print_page_table(&p);
      }
-     //exit(1);
 
     string pname, instr, vaddr;
     
@@ -384,8 +399,6 @@ int main(int argc, char* argv[]) {
         unsigned short address = hexToShort(vaddr);
         int vpn = (address >> 4) & 0xF;
         int offset = address & 0x0F;
-
-        cout << vpn << ' ' << offset << endl;
 
 
 //        int tag = (address >> 6) & 0x3FF;
@@ -401,12 +414,12 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (data == -1){
+        if (data != -1){
+            continue;
+        }else{
             exit(1);
         }
-        continue;
-
-        /*
+        /*n
         cout << op << " "
             << hex << nouppercase
             << reg << " "
