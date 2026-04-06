@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstring>
 #include <string>
-//thank you chat gpt for formatting the printing so there is minimal diffing between my stdout and expected stdout:w
+#include <stdio.h>
 
 using namespace std;
 
@@ -24,6 +24,23 @@ struct CacheLine {
     unsigned short tag;
     unsigned char data[BLOCK_SIZE];
 };
+
+
+typedef struct {
+    int present;
+    int modified;
+    int access;
+    int frame;
+    int disk_area;
+
+}page_line_t;
+
+typedef struct {
+    std::string name;
+    int page_count;
+    page_line_t page_table[PAGE_COUNT];
+
+}process_t;
 
 unsigned short REG[NUM_REGS];
 unsigned char RAM[RAM_SIZE];
@@ -52,18 +69,6 @@ void initSystem() {
     }
 }
 
-void loadDisk(string filename) {
-    ifstream file(filename);
-    string addr;
-    while (file >> addr) {
-        int base = hexToShort(addr);
-        for (int i = 0; i < 16; i++) {
-            string byte;
-            file >> byte;
-            Disk[base + i] = (unsigned char) hexToShort(byte);
-        }
-    }
-}
 
 void loadRAM(string filename) {
     ifstream file(filename);
@@ -191,21 +196,101 @@ void printRAM() {
     }
 }
 
-typedef struct {
-    int present;
-    int modified;
-    int access;
-    int frame;
-    int disk_area;
+void loadDisk(string filename) {
+    ifstream file(filename);
+    string line;
 
-}page_line_t;
+    //skip first 2 lines
+    std::getline(file,line);
+    std::getline(file,line);
+    string addr;
+    while (file >> addr) {
+        int base = hexToShort(addr);
+        for (int i = 0; i < 16; i++) {
+            string byte;
+            file >> byte;
+            Disk[base + i] = (unsigned char) hexToShort(byte);
+        }
+    }
 
-typedef struct {
-    std::string name;
-    int page_count;
-    page_line_t page_table[PAGE_COUNT];
+}
 
-}process_t;
+void printDisk() {
+
+    cout << "\n Disk: \n";
+
+
+    for (int i = 0; i < 16*32; i += 16) {
+        cout << hex << i << ": ";
+        //cout << setw(2) << setfill('0') << hex << i << ": ";
+
+        for (int j = 0; j < 16; j++) {
+            cout << setw(2) << setfill('0')
+                 << (int)Disk[i/16 + j];
+
+            if (j < 15) cout << " ";
+        }
+        cout << "\n";
+    }
+}
+
+
+void populate_page_table(process_t * p){
+    string pname = p->name;
+    auto page_table = p->page_table;
+
+    string filename = "pageTable_" + pname + ".old";
+    ifstream file(filename);
+    string line;
+
+    //skip first 1 line
+    std::getline(file,line);
+    int i = 0; 
+    while (std::getline(file,line)){
+        stringstream ss(line);
+        page_line_t page_line = {};
+        ss >> page_line.present;
+        ss >> page_line.modified;
+        ss >> page_line.access;
+        string check;
+        ss >> check;
+        if (check == "-"){
+            page_line.frame = -1;
+        }
+        ss >> check;
+        if (check == "-"){
+            page_line.disk_area = -1;
+        }
+
+       page_table[i++] = page_line;
+    }
+}
+
+void print_page_table(process_t * p){
+    auto page_table = p->page_table;
+
+    for (int i = 0 ; i < PAGE_COUNT; i++){
+        cout << page_table[i].present << ' ';
+        cout << page_table[i].modified << ' ';
+        cout << page_table[i].access << ' ';
+        int check;
+        check = page_table[i].frame;
+        if (check == -1){
+            cout << '-' << ' ';
+        }else{
+            cout << check << ' ';
+        }
+
+        check = page_table[i].disk_area;
+        if (check == -1){
+            cout << '-' << ' ';
+        }else{
+            cout << check << ' ';
+        }
+        cout << '\n';
+    }
+}
+
 
 int main(int argc, char* argv[]) {
 
@@ -219,81 +304,89 @@ int main(int argc, char* argv[]) {
         if (arg == "-input") inputFile = argv[++i];
         else if (arg == "-ram") ramFile = argv[++i];
         else if (arg == "-debug") debug = true;
-        else if (arg == "--disk") diskFile = argv[++i];
+        else if (arg == "-disk") diskFile = argv[++i];
     }
 
     initSystem();
+    //todo is add process page table init
 
-    //if (!ramFile.empty()) loadRAM(ramFile);
-    //if (!diskFile.empty()) loadDisk(diskFile);
+    if (!ramFile.empty()) loadRAM(ramFile);
+    if (!diskFile.empty()) loadDisk(diskFile);
 
-    // if (debug) {
-    //     printRegisters();
-    //     printCache();
-    //     printRAM();
-    // }
     
-    ifstream input(inputFile);
 
-    string line;
-    getline(input, line);
-    stringstream ss(line);
+
+    std::ifstream input(inputFile);
+    if (!input) {
+        std::cout << "uh oh\n";
+        exit(1);
+    }
+
     int process_count;
-    ss >> process_count;
+    input >> process_count;
 
     std::vector<process_t> processes;
-    for (int i = 0 ; i < process_count; i++){
-        getline(input, line);
-        cout << line << endl;;
-        stringstream ss(line);
-        process_t p = {};
-        int x;
-        ss >> p.name >> x;
-        cout << p.name << '\t' << p.page_count << endl;
+    for (int i = 0; i < process_count; i++) {
+        process_t p{};
+        input >> p.name >> p.page_count;
+        std::cout << p.name << ' ' << p.page_count << std::endl;
         processes.push_back(p);
     }
 
-    
+    for(int i = 0 ; i < process_count ; i++ ){
+        auto *p = &processes[i];
+        populate_page_table(p);
+        print_page_table(p);
+    }
+
+     if (debug) {
+         printRegisters();
+//         printCache();
+         printRAM();
+         printDisk();
+         for (auto p : processes)
+             print_page_table(&p);
+     }
+    exit(1);
 
     string pname, instr, vaddr;
     
     //read from stdin, operation, register address seperated by whitespace
     while (input >> pname >> instr >> vaddr) {
-        /*
-        int regNum = hexToShort(reg);
-        unsigned short address = hexToShort(addr);
+        //vaddr ->  real addr 4bit VPN + 4bit offset
+        
+        //int regNum = hexToShort(reg);
+        unsigned short address = hexToShort(vaddr);
 
         int offset = address & 0x7;
         int index = (address >> 3) & 0x7;
         int tag = (address >> 6) & 0x3FF;
 
         bool hit;
-        unsigned short data = accessCache(op, regNum, address, hit);
+        //unsigned short data = accessCache(op, regNum, address, hit);
 
+        /*
         cout << op << " "
             << hex << nouppercase
             << reg << " "
-            << setw(4) << setfill('0') << addr << " "
+            << setw(4) << setfill('0') << vaddr << " "
             << setw(3) << setfill('0') << tag << " "
             << index << " "
             << offset << " "
             << (hit ? "H" : "M") << " "
             << setw(4) << setfill('0') << data
             << "\n";
+            */
 
         if (debug) {
             printCache();
         }
-        */
     }
 
     printRegisters();
     printCache();
     printRAM();
 
-    for(auto p : processes){
-        cout << p.name << '\t' << p.page_count << endl;
-    }
 
     return 0;
 }
