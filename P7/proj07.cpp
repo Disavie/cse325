@@ -6,6 +6,7 @@
 #include <cstring>
 #include <string>
 #include <stdio.h>
+#include <queue>
 
 using namespace std;
 
@@ -193,6 +194,10 @@ void print_page_table(process_t * p){
     }
 }
 
+inline void write_to_disk(int base, int offset, int data[]){
+    Disk[base+offset] = (unsigned char)data[offset];
+}
+
 short unsigned validate(process_t * p, string instr, short addr, int offset){
 
     short unsigned d = -1;
@@ -208,15 +213,34 @@ short unsigned validate(process_t * p, string instr, short addr, int offset){
     }else{
         if (!pline.present){
 
-            // UNIFINISHED >>>
+            if (pline.modified){
+                write_to_disk(pline.disk_area,offset, RAM.lines[pline.frame].data);
+            }
+            //evict()
+            //load()
+            
+            if (instr == "READ"){
+                //d = RAM.lines[pline.frame].data[offset];
+                pline.modified = 0;
+            else{ 
+                //write_to_ram()
+                pline.modified = 1;
+            }
+
+            //pline.disk_area = ;
+            //pline.frame = ;
+            pline.present = 1;
+            // UNFINISHED >>
             log+= "PAGE_FAULT | alloc=-- evict=-- wb=-- | PA=" + pa; 
-            //fetch page
         }else{
 
-            // UNIFINISHED >>>
-            
-            log+= "hit | alloc=F";
-            //cout << RAM.lines[pline.frame].data[offset]<< endl;
+            if (instr == "READ"){
+                d = RAM.lines[pline.frame].data[offset];
+            }else{
+                write_to_disk(pline.disk_area,offset, RAM.lines[pline.frame].data);
+                pline.modified = 1;
+            }
+            log+= "hit | alloc=-- evict=-- wb=-- | PA="+pa;
         }
     }
     cout << log << endl;
@@ -302,24 +326,13 @@ int main(int argc, char* argv[]) {
         if (data != -1){
             continue;
         }else{
-            exit(1);
+            //exit(1);
         }
-        /*n
-        cout << op << " "
-            << hex << nouppercase
-            << reg << " "
-            << setw(4) << setfill('0') << vaddr << " "
-            << setw(3) << setfill('0') << tag << " "
-            << index << " "
-            << offset << " "
-            << (hit ? "H" : "M") << " "
-            << setw(4) << setfill('0') << data
-            << "\n";
-            */
 
     }
 
     printRAM();
+    printDisk();
 
 
     return 0;
