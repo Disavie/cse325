@@ -1,0 +1,350 @@
+CSE 325 - Project 7
+
+Project Overview
+This project extends your work from Project 6 by adding a virtual memory layer between the processor
+and physical RAM. You will design and implement a C/C++ program that simulates a virtual memory
+system with per-process page tables, a shared physical RAM, and a disk swap area. The simulation
+handles page faults, page replacement using the FIFO (First-in-First-out) policy, dirty-bit write-back,
+and memory protection faults. Please submit your work for grading via the D2L system.
+
+Project Deliverable
+The deliverable for this assignment is the following file:
+
+proj07.cpp – your program code
+
+Project Specifications
+The system to be simulated consists of multiple concurrent processes (P0, P1, P2, etc), each with its
+own virtual address space and page table, sharing a common physical RAM and a disk swap area. The
+parameters of the system are fixed as follows:
+Virtual address bits:
+
+8 (4-bit VPN + 4-bit byte offset)
+
+Number of Pages per process:
+
+4, 8, or 16
+
+Page size:
+
+16 bytes (offsets 0x0–0xF)
+
+Physical RAM frames:
+
+8 (frames 0-7, shared across all processes)
+
+Disk swap slots:
+
+32 (slots 0-31)
+
+Replacement policy:
+
+FIFO (first-in, first-out)
+
+Each page table entry contains four fields:
+• P (present bit): 1 if the page is currently in RAM, 0 if it is on disk or unallocated.
+• M (modified bit): 1 if the page has been written since it was loaded into RAM. A dirty page must
+be written back to disk before its frame is reused.
+• A (access bit): A=1 if the user can access the page. An attempt to access when A=0 raises a
+protection fault; no state is modified.
+• Frame: when P=1, the physical frame number holding the page;
+• Disk Area: The area in the disk where the corresponding page is saved
+1
+
+1. The program will simulate the virtual memory system by processing a file which contains one or
+more memory-access instructions. The file will contain the number of processes, the number of pages
+per process, and will be followed by the following fields, separated by exactly one space, and terminated
+by a newline:
+(a) Process identifier (P0, P1, · · ·)
+(b) Operation (READ or WRITE)
+(c) Virtual address
+For example:
+3
+P0 4
+P1 16
+P2 8
+P0 READ
+
+14
+
+P1 WRITE 02
+P0 READ
+
+1B
+
+P2 WRITE 2E
+The first line represents the number of processes. The next 3 lines are the number of pages each process
+has been allocated. This is followed by a Process 0, read instruction from virtual address 14 (VPN 1,
+byte offset 4). The last line represents a Process 2, write instruction to virtual address 2E (VPN 2, byte
+offset E).
+2. For each instruction in the file, the program will generate a LOG.txt with lines with the following
+information, separated by exactly one space and terminated by a newline:
+(a) Instruction number (decimal, 1-indexed)
+(b) Process identifier (P0, P1, or P2)
+(c) Operation (READ or WRITE)
+(d) Virtual page number (one decimal digit)
+(e) Byte offset (one hexadecimal digit with 0x prefix)
+(f) Result of access: hit, PAGE FAULT, or PROT FAULT
+(g) Frame allocated (e.g. F0), or -- if no allocation occurred
+(h) Frame evicted (e.g. F3), or -- if no eviction occurred
+(i) Write-back required: y if the evicted frame was dirty and required a disk write-back, n if the evicted
+frame was clean, or -- if no eviction occurred
+(j) Physical address in hexadecimal (four digits with 0x prefix), or -- for protection faults
+For example:
+
+2
+
+1
+
+P0 READ
+
+0 0x4 | hit
+
+| alloc=--
+
+evict=--
+
+wb=-- | PA=0x04
+
+2
+
+P1 WRITE 1 0x8 | hit
+
+| alloc=--
+
+evict=--
+
+wb=-- | PA=0x38
+
+3
+
+P2 READ
+
+1 0x2 | PAGE_FAULT | alloc=F0
+
+evict=--
+
+wb=-- | PA=0x12
+
+4
+
+P0 WRITE 2 0xA | PROT_FAULT | alloc=--
+
+evict=--
+
+wb=-- | PA=--
+
+3. After the simulation is completed, the program will display the contents of the page tables, RAM.
+(a) The initial page tables for all the processes will be given to you as their own files. They will follow
+the naming convention of pageTable P0.old for process 0 and will be changed accordingly. For each
+process, there will be n lines, with Present, Modified, Access bits, Frame number, and Disk Area number
+. For example:
+pageTable P0.old
+P
+
+M
+
+A
+
+Frame
+
+Disk Area
+
+1
+
+0
+
+1
+
+2
+
+0
+
+1
+
+1
+
+1
+
+6
+
+5
+
+0
+
+0
+
+0
+
+-
+
+3
+
+0
+
+0
+
+1
+
+-
+
+8
+
+pageTable P1.old
+P
+
+M
+
+A
+
+Frame
+
+Disk Area
+
+1
+
+0
+
+1
+
+4
+
+1
+
+0
+
+0
+
+1
+
+-
+
+5
+
+...
+4. Command line arguments will be used to specify the input instruction file, the initial system state
+file, and an optional debug flag.
+(a) The -input option will be followed by the name of the file containing the memory-access instructions (as defined in #1 above).
+(b) The -ram option initializes the content of the RAM with the provided file. For example,
+RAM Contents:
+Frame
+
+Data
+
+0
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+1
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+2
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+3
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+4
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+5
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+(c) The -disk option to initialize the content of the Disk with the provided file. For example,
+Disk Swap Area:
+Address
+
+Data
+
+0
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+1
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+3
+
+2
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+3
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+4
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+5
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+6
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+7
+
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+...
+...
+(d) The -debug option causes the program to display the full system state (page tables, RAM, disk)
+immediately before the first instruction is processed, and the RAM and corresponding page table
+state after each instruction is processed.
+
+5. Page replacement uses the FIFO policy. The program must maintain a queue of occupied frames in
+the order in which they were loaded. When a page fault occurs and all frames are occupied, the frame
+at the head of the queue (the oldest resident page) is evicted. If that frame’s dirty bit is set, its contents
+are written back to the disk slot associated with the evicted page before the frame is reused. The evicted
+process’s page table entry is updated: P is set to 0 and the Frame/Slot field is updated to the disk slot
+number.
+6. The program will include appropriate logic to handle the following exceptional cases:
+• A protection fault occurs when a READ/WRITE targets a page whose A bit is 0. No page table
+entry, dirty bit, RAM frame, or FIFO queue is modified. The output line records PROT FAULT and
+PA=--.
+• A page fault on a page that has never been accessed (Frame/Slot = “–”) allocates a new disk slot
+as the backing store for the page.
+• If the -input file cannot be opened, the program will print an appropriate error message and exit.
+• If -ram or -disk option is not provided, RAM and Disk is initialized by all 0’s respectively.
+
+Assignment Notes
+1. Your source code file will be named proj07.cpp and must compile cleanly with g++ in the scully
+Linux environment.
+2. Valid executions of the program might appear as follows:
+./proj07 -input testA
+./proj07 -debug -input testB
+./proj07 -ram RAM.old -input testA
+./proj07 -disk Disk.old -input testA
+./proj07 -debug -ram RAM.old -disk Disk.old -input testA
+3. Your program must create the following data structures:
+(a) A page table for each of the processes.
+
+4
+
+(b) A RAM frame table tracking
+(c) A disk swap area tracking
+(d) A FIFO queue of frame indices, ordered from oldest (head) to most recently loaded (tail).
+4. When a page is evicted and its dirty bit is 1, the eviction procedure must:
+(i) Write the frame contents back to the disk slot associated with that page.
+(ii) Update the evicted process’s page table entry: set P=0 and store the disk slot number in the
+Frame/Slot field.
+(iii) Record the write-back as wb=y in the output line for the instruction that triggered the eviction.
+5. The program must create the following file upon termination:
+(i) LOG.txt
+(ii) PageTable P0.new for each process in the texttt-input file
+(iii) RAM.new and Disk.new
+6. This project will be graded on the basis of a similarity metric.
+7. You should develop your own set of test cases covering edge cases such as: sequences that produce
+only hits, sequences that produce only protection faults, evictions of dirty pages, evictions of clean
+pages, and a process accessing a page that has never been touched (Frame/Slot = “–”).
+
+5
+
+
