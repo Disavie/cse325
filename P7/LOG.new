@@ -1,0 +1,3 @@
+P0 READ 1 0x4 | PAGE_FAULT | alloc=F0 evict=-- wb=-- | PA=0x04
+P1 WRITE 0 0x2 | PAGE_FAULT | alloc=F1 evict=-- wb=-- | PA=0x12
+P0 READ 1 0xb | hit | alloc=-- evict=-- wb=-- | PA=0x0b

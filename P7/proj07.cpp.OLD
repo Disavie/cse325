@@ -198,9 +198,17 @@ inline void write_to_disk(int base, int offset, int data[]){
     Disk[base+offset] = (unsigned char)data[offset];
 }
 
+void evict(page_line_t * pline){
+    // checking dirty bit
+    if (pline->modified){
+        write_to_disk(pline->disk_area,offset, RAM.lines[pline->frame].data);
+    }
+
+}
+
 short unsigned validate(process_t * p, string instr, short addr, int offset){
 
-    short unsigned d = -1;
+    short d = -1;
     // search in page table
     page_line_t pline = (p->page_table)[addr];
     string log = p->name + " " + instr + " " + to_string(addr);
@@ -213,10 +221,8 @@ short unsigned validate(process_t * p, string instr, short addr, int offset){
     }else{
         if (!pline.present){
 
-            if (pline.modified){
-                write_to_disk(pline.disk_area,offset, RAM.lines[pline.frame].data);
-            }
             //evict()
+            string wbstat = "y";
             //load()
             
             if (instr == "READ"){
@@ -231,7 +237,7 @@ short unsigned validate(process_t * p, string instr, short addr, int offset){
             //pline.frame = ;
             pline.present = 1;
             // UNFINISHED >>
-            log+= "PAGE_FAULT | alloc=-- evict=-- wb=-- | PA=" + pa; 
+            log+= "PAGE_FAULT | alloc="+alc+" evict"+evict"+ wb="+wbstat+" | PA=" + pa; 
         }else{
 
             if (instr == "READ"){
@@ -304,16 +310,13 @@ int main(int argc, char* argv[]) {
     while (input >> pname >> instr >> vaddr) {
         //vaddr ->  real addr 4bit VPN + 4bit offset
         
-        //int regNum = hexToShort(reg);
         unsigned short address = hexToShort(vaddr);
         int vpn = (address >> 4) & 0xF;
         int offset = address & 0x0F;
 
 
-//        int tag = (address >> 6) & 0x3FF;
-
         bool hit;
-        unsigned short data;
+        short data;
 
         for(int i = 0 ; i < process_count ; i++ ){
             auto *p = &processes[i];
