@@ -9,9 +9,6 @@
 
 using namespace std;
 
-const int RAM_SIZE = 65536;
-const int NUM_REGS = 16;
-const int CACHE_LINES = 8;
 const int BLOCK_SIZE = 8;
 
 const int RAM_LINE_BYTES = 16;
@@ -21,12 +18,6 @@ const int RAM_LINES = 8;
 const int DISK_SIZE = 32;
 const int PAGE_COUNT = 16;
 
-struct CacheLine {
-    bool valid;
-    bool modified;
-    unsigned short tag;
-    unsigned char data[BLOCK_SIZE];
-};
 
 
 typedef struct {
@@ -55,10 +46,7 @@ typedef struct{
 
 ram_t RAM;
 
-unsigned short REG[NUM_REGS];
-
 unsigned char Disk[DISK_SIZE];
-CacheLine CACHE[CACHE_LINES];
 
 unsigned short hexToShort(string s) {
     return (unsigned short) stoi(s, nullptr, 16);
@@ -69,19 +57,6 @@ string toHex(int val, int width) {
     ss << hex << setw(width) << setfill('0') << nouppercase << val;
     return ss.str();
 }
-
-void initSystem() {
-    memset(REG, 0, sizeof(REG));
-//    memset(RAM, 0, sizeof(RAM));
-
-    for (int i = 0; i < CACHE_LINES; i++) {
-        CACHE[i].valid = 0;
-        CACHE[i].modified = 0;
-        CACHE[i].tag = 0;
-        memset(CACHE[i].data, 0, BLOCK_SIZE);
-    }
-}
-
 
 void loadRAM(string filename) {
     ifstream file(filename);
@@ -101,104 +76,7 @@ void loadRAM(string filename) {
         }
     }
 }
-/*
-void writeBack(int index) {
-    if (CACHE[index].valid && CACHE[index].modified) {
-        unsigned short tag = CACHE[index].tag;
-        int baseAddr = (tag << 6) | (index << 3);
 
-        for (int i = 0; i < BLOCK_SIZE; i++) {
-            RAM[baseAddr + i] = CACHE[index].data[i];
-        }
-    }
-}
-*/
-/*
-void loadBlock(int index, unsigned short tag, unsigned short addr) {
-    writeBack(index);
-
-    int baseAddr = addr & 0xFFF8; // align to 8-byte block
-
-    for (int i = 0; i < BLOCK_SIZE; i++) {
-        CACHE[index].data[i] = RAM[baseAddr + i];
-    }
-
-    CACHE[index].tag = tag;
-    CACHE[index].valid = 1;
-    CACHE[index].modified = 0;
-}
-*/
-unsigned short accessCache(string op, int regNum, unsigned short addr, bool &hit) {
-
-    int offset = addr & 0x7;
-    int index = (addr >> 3) & 0x7;
-    int tag = (addr >> 6) & 0x3FF;
-
-    CacheLine &line = CACHE[index];
-
-    if (line.valid && line.tag == tag) {
-        hit = true;
-    } else {
-        hit = false;
-        //loadBlock(index, tag, addr);
-    }
-
-    // BIG ENDIAN
-    if (op == "LDR") {
-        unsigned short value =
-            (line.data[offset] << 8) |
-            (line.data[offset + 1]);
-
-        REG[regNum] = value;
-        return value;
-    } else { // STR
-        unsigned short value = REG[regNum];
-
-        line.data[offset]     = (value >> 8) & 0xFF;
-        line.data[offset + 1] = value & 0xFF;
-
-        line.modified = 1;
-        return value;
-    }
-}
-
-// ---------------- PRINT FUNCTIONS ----------------
-void printRegisters() {
-    cout << "\n";
-
-    for (int row = 0; row < 4; row++) {
-        for (int col = 0; col < 4; col++) {
-            int i = row + col * 4;
-
-            cout << "R" << hex << nouppercase << i << ": "
-                 << setw(4) << setfill('0') << REG[i];
-
-            if (col < 3) cout << "\t";
-        }
-        cout << "\n";
-    }
-}
-
-void printCache() {
-    cout << "\n";
-    cout << "     V M Tag  0  1  2  3  4  5  6  7\n";
-    cout << "------------------------------------\n";
-
-    for (int i = 0; i < CACHE_LINES; i++) {
-        cout << "[" << hex << i << "]: "
-             << CACHE[i].valid << " "
-             << CACHE[i].modified << " "
-             << setw(3) << setfill('0') << CACHE[i].tag << " ";
-
-        for (int j = 0; j < BLOCK_SIZE; j++) {
-            cout << setw(2) << setfill('0')
-                 << hex << (int)CACHE[i].data[j];
-
-            if (j < BLOCK_SIZE - 1) cout << " ";
-        }
-        cout << "\n";
-    }
-}
 
 void printRAM() {
     cout << "\n";
@@ -320,17 +198,28 @@ short unsigned validate(process_t * p, string instr, short addr, int offset){
     short unsigned d = -1;
     // search in page table
     page_line_t pline = (p->page_table)[addr];
+    string log = p->name + " " + instr + " " + to_string(addr);
+    string pa = toHex((pline.frame << 4) | offset,2);
 
-    if (pline.present ){
-        short pa = (pline.frame << 4) | offset;
-        cout << "PA = 0x" << hex << pa << endl;
-        cout << RAM.lines[pline.frame].data[offset]<< endl;
+    log+= " 0x" + pa + " | ";
+
+    if (!pline.access){
+        log += "PROT_FAULT | alloc=-- evict=-- wb=-- | PA=--";
     }else{
-        //page replacement 
-        int disk_area = pline.disk_area;
-//        cout << "Need to retrieve from disk for " << instr << " at " << addr << offset << endl;
-    }
+        if (!pline.present){
 
+            // UNIFINISHED >>>
+            log+= "PAGE_FAULT | alloc=-- evict=-- wb=-- | PA=" + pa; 
+            //fetch page
+        }else{
+
+            // UNIFINISHED >>>
+            
+            log+= "hit | alloc=F";
+            //cout << RAM.lines[pline.frame].data[offset]<< endl;
+        }
+    }
+    cout << log << endl;
     return d;
 }
 
@@ -350,8 +239,6 @@ int main(int argc, char* argv[]) {
         else if (arg == "-disk") diskFile = argv[++i];
     }
 
-    initSystem();
-    //todo is add process page table init
 
     if (!ramFile.empty()) loadRAM(ramFile);
     if (!diskFile.empty()) loadDisk(diskFile);
@@ -381,10 +268,8 @@ int main(int argc, char* argv[]) {
     }
 
      if (debug) {
-         printRegisters();
          printRAM();
          printDisk();
-         //printCache();
          for (auto p : processes)
              print_page_table(&p);
      }
@@ -432,13 +317,8 @@ int main(int argc, char* argv[]) {
             << "\n";
             */
 
-        if (debug) {
-            printCache();
-        }
     }
 
-    printRegisters();
-    printCache();
     printRAM();
 
 
