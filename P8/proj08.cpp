@@ -8,12 +8,69 @@
 #include <netdb.h>
 #include <string>
 #include <iostream>
+#include <vector>
+#include <stdlib.h>
+#include <time.h>
+
+#define swap(a,b) do{typeof(*(a))tmp = *a; \
+                        *a = *b;\
+                        *b = tmp;} while(0)\
+
+
 
 
 typedef struct{
-    char  packets[5][1024];
+    int order;
+    char data[1024];
+
+}packet_t;
+
+typedef struct{
+    packet_t packets[5];
+    int packet_count;
 }msg_t;
 
+
+void print_array(packet_t * packets, int n) {
+    for (int i = 0; i < n; i++)
+        printf("%d ", packets[i].order);
+    printf("\n");
+}
+
+
+int is_sorted(packet_t * packets, int n){
+    print_array(packets,n);
+    for(int i = 0 ; i < n - 1; i++){
+        if ( packets[i].order > packets[i+1].order ){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void shuffle(packet_t * packets, int n){
+    //std::cout << "Swapping : ";
+    //print_array(packets,n);
+    for (int i = 0; i < n ; i++) {
+        int j = rand() % n;
+        swap(&packets[i], &packets[j]);
+    }
+    //std::cout << "Done swapping : ";
+    //print_array(packets,n);
+}
+
+
+void bogosort(packet_t * packets, int n){
+
+    clock_t start = clock(); 
+    while(!is_sorted(packets, n)){
+        shuffle(packets, n);
+    }
+    clock_t end = clock();
+
+    double time_taken = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("Bogosorted the packets in %lf seconds\n", time_taken);
+}
 
 int main(int argc, char **argv) {
     /// hostname port file-to-send
@@ -63,8 +120,9 @@ int main(int argc, char **argv) {
     }
     char buf[1024];
     int packets_recieved = 0;
+    int packets_expected = 5;
     msg_t msg;
-    while (packets_recieved < 5){
+    while (packets_recieved < packets_expected){
         ssize_t recvlen = recv(s, buf, sizeof(buf)-1, 0);
 
         if(recvlen == -1){
@@ -74,23 +132,31 @@ int main(int argc, char **argv) {
         }
 
         buf[recvlen] = '\0';
-        strcpy(msg.packets[packets_recieved],buf);
+        strcpy(msg.packets[packets_recieved].data,buf);
+        msg.packets[packets_recieved].order = int( buf[0] - '0' );
         packets_recieved++;
     }
+    msg.packet_count = packets_recieved;
 
 
     /// Ok part 1 done
-    if (strcmp(msg.packets[0],"PONG") == 0){
+    if (strcmp(msg.packets[0].data,"PONG") == 0){
         printf("good job");
         return 0;
-    }else if (strcmp(msg.packets[0],"FAIL") == 0){
+    }else if (strcmp(msg.packets[0].data,"FAIL") == 0){
         std::cerr << "failed to open: " <<  filename << std::endl;
         return 1;
     }
+    /// reorder
+    bogosort(msg.packets, msg.packet_count);
 
-    for (int i  = 0 ; i < 5 ; i++){
-        std::cout << msg.packets[i] << std::endl;
+    for (int i = 0 ; i < sizeof(msg.packets) / sizeof(packet_t) ; i++ ){
+        std::cout << msg.packets[i].order << std::endl;
     }
+
+
+    //std::sort
+
     /// Decrypt
     ///
     ///[order] - [nonce] - [ciphertext] - [tag]\n
